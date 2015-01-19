@@ -78,10 +78,73 @@ def getnames(n): # get full set of names used by program so that we can assign t
 	else:
 		return []
 
+# instead of dealing with 
+def exprEval(n,loc):
+	if isinstance(n, Const):
+		return [['=lit',n.value,loc]]
+	elif isinstance(n, Add):
+		return exprEval(n.left,loc) + exprEval(n.right,loc+1) + [['+',loc+1,loc]]
+	elif isinstance(n, UnarySub):
+		return exprEval(n.expr,loc) + [['-',loc]]
+	elif isinstance(n, Name):
+		return [['=name',n.name,loc]]
+	elif isinstance(n, CallFunc):
+		return [['call']] # fill this out more later
+
+def discardEval(n):
+	if isinstance(n, CallFunc):
+		return exprEval(n,0)
+	elif isinstance(n, Node):
+		return concat(map(discardEval,n.getChildren())) # we always get children l->r
+	else:
+		return []
+
+def printEval(n):
+	return exprEval(n.nodes[0],0) + [['print']]
+
+def assEval(n):
+	return exprEval(n.expr,0) + [['name=',0,n.nodes[0].name]]
+
+def stmtEval(n):
+	def subStmtEval(n):
+		if isinstance(n, Discard):
+			return discardEval(n)
+		elif isinstance(n, Printnl):
+			return printEval(n)
+		elif isinstance(n, Assign):
+			return assEval(n)
+		else:
+			raise Exception("Unrecognized AST Node")
+	return concat(map(subStmtEval,n.nodes))
+
+def progEval(n):
+	return stmtEval(n.node)
+
+def compileIR(n,ndict,ldict):
+	tdict = {}
+	tdict['=lit'] = lambda x: "movl $" + str(n[1]) + ", " + ldict[n[2]]
+	tdict['+'] = lambda x: "addl " + ldict[n[1]] + ", " + ldict[n[2]]
+	tdict['-'] = lambda x: "negl " + ldict[n[1]]
+	tdict['=name'] = lambda x: "movl " + ndict[n[1]] + ", " + ldict[n[2]]
+	tdict['print'] = lambda x: "pushl " + ldict[n[0]] + "\ncall print_int_nl"
+	tdict['name='] = lambda x: "movl " + ldict[n[1]] + ", " + ndict[n[2]]
+	tdict['call'] = lambda x: "call input" #"pushl %eax\npushl %ebx\npushl %edx"
+	return str.join("\n",map(lambda x: tdict[x[0]](x)))
+
 def le(n):
+	return progEval(parse(n))
 	#return lispexpr(unwrap(parse(n)))
-	return unexpr(parse(n))
+	#return unexpr(parse(n))
 	#return getnames(parse(n))
+
+print "1:"
+print le("")
+print "2:"
+print le("2+2")
+print "3:"
+print le("a=2+2")
+print "4:"
+print le("a=2+2\n2+2+2\nprint a")
 
 f = sys.argv[1]
 l = len(f)
