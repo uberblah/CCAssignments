@@ -126,7 +126,7 @@ def compileIR(n,ndict,ldict):
 	tdict['+'] = lambda x: "addl " + ldict[n[1]] + ", " + ldict[n[2]]
 	tdict['-'] = lambda x: "negl " + ldict[n[1]]
 	tdict['=name'] = lambda x: "movl " + ndict[n[1]] + ", " + ldict[n[2]]
-	tdict['print'] = lambda x: "pushl " + ldict[n[0]] + "\ncall print_int_nl"
+	tdict['print'] = lambda x: "pushl " + ldict[n[0]] + "\ncall print_int_nl\naddl $4, %esp"
 	tdict['name='] = lambda x: "movl " + ldict[n[1]] + ", " + ndict[n[2]]
 	tdict['call'] = lambda x: "call input" #"pushl %eax\npushl %ebx\npushl %edx"
 	return str.join("\n",map(lambda x: tdict[x[0]](x)))
