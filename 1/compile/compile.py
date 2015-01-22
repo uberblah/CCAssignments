@@ -4,7 +4,7 @@ from compiler.ast import *
 from compiler import parse
 import sys
 
-#print compiler.parse(sys.stdin.read())
+#sys.setrecursionlimit(2**30) # maybe needed for final submission?
 
 #TODO: move some of this stuff outside of compile.py
 def par(n):
@@ -25,7 +25,6 @@ def tablines(s, tab = "\t"):
 	s = map(lambda x: tab+x, s)
 	s = str.join("\n",s)
 	return s
-	#return str.join("\n",map(lambda x: "\t" + x, str.split(s,"\n")))
 
 def unexpr(n):
 	ue = unexpr
@@ -65,6 +64,7 @@ def unexpr(n):
 		#return ue(n.getChildren())
 		raise Exception("Unrecognized AST Node")
 
+# where compiler really starts: with a simple static analysis tool
 def getnames(n): # get full set of names used by program so that we can assign to different ones
 	if isinstance(n, list) or isinstance(n, tuple):
 		return list(set(concat(map(getnames,n))))
@@ -122,7 +122,7 @@ def progEval(n):
 	return stmtEval(n.node)
 
 def getIRtmp(n):
-	ndict = {} # TODO: translation dictionary in separate file
+	ndict = {}
 	ndict['=lit'] = lambda x: x[2]
 	ndict['+'] = lambda x: max(x[1], x[2])
 	ndict['-'] = lambda x: x[1]
@@ -138,7 +138,7 @@ def getIRtmp(n):
 def compileIR(n,ndict,ldict):
 	tdict = {} # TODO: translation dictionary in separate file
 	tdict['=lit'] = lambda x: "movl $" + str(x[1]) + ", " + ldict[x[2]]
-	tdict['+'] = lambda x: "movl " + ldict[x[2]] + ", %eax\naddl %eax, " + ldict[x[2]]
+	tdict['+'] = lambda x: "movl " + ldict[x[1]] + ", %eax\naddl %eax, " + ldict[x[2]]
 	tdict['-'] = lambda x: "negl " + ldict[x[1]]
 	tdict['=name'] = lambda x: "movl " + ndict[x[1]] + ", %eax\nmovl %eax, " + ldict[x[2]]
 	tdict['print'] = lambda x: "call print_int_nl" #"movl " + ldict[0] + ldict[x[1]] + "\ncall print_int_nl"#\naddl $4, %esp"
@@ -157,7 +157,7 @@ def compile(n):
 		return simpleHead + "\n" + stackMake
 	def genDict(names,tmpsize):
 		ret={}
-		spot = tmpsize
+		spot = tmpsize+1
 		for i in names:
 			ret[i] = str(spot*4)+"(%esp)"
 			spot = spot + 1
@@ -214,38 +214,3 @@ r = open(r,'r')
 f = open(f,'w')
 
 f.write(compile(r.read()))
-
-"""
-f.write('''.global main
-main:
-pushl $5
-call print_int_nl
-addl $4, %esp
-ret
-''')
-"""
-
-"""
-f.write('''.globl main
-main:
-call input
-pushl %eax
-call print_int_nl
-addl $4, %esp
-ret
-''')
-"""
-
-'''
-print tablines(tablines("notab\n\tonetab\n\t\ttwotab\nnotabagain"))
-print le("")
-print le("5")
-print le("a=2+5")
-print le("print -a+-5")
-s = "c=-a+-5+b(200,500)\nprint a"
-print le("c=-a+-5+b(200,500)\nprint a")
-print le("if a:\n\tprint a\nelif b:\n\tprint b\nelse:\n\tprint c")
-#print "\n"
-#print getnames(parse("if a:\n\tprint a\nelif b:\n\tprint b\nelse:\n\tprint c + 2 + 5"))
-#print le("a,b=5,5")
-'''
