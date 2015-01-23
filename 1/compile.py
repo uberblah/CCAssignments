@@ -78,6 +78,78 @@ def getnames(n): # get full set of names used by program so that we can assign t
 	else:
 		return []
 
+def repeat(val, n):
+        array = []
+        for i in range(n):
+                array.append(val)
+        return array
+
+#What is this function supposed to return?
+#Perhaps a single statement consisting exclusively of simple operations?
+#Fair enough, don't forget to wrap a Module to make a valid Python AST
+#Flatten must have a second kind of output, which is built by the recursing
+#    calls. I'll make some internal functions that recurse that way.
+#Essentially what I'm saying is I'm going to completely rewrite this.
+#I also need to precalculate (before flatten), what the prefix of the tmpvars is
+#(and it needs to not be recalculated by further recursions)
+
+#the direct return value of the internal flatten will be the new node for the
+#    AST being processed. it will also place a new element in the current
+#    execution's global output (which is returned by the outer function)
+
+#Have you looked at my code yet? I have code very similar to flatten
+#In particular, I have different functions for expressions, statements and programs
+
+#It might be saner to copy those elements of the design
+
+#the outer flatten will "shuck" the program, removing the encapsulating module
+#    and expression. the inner flatten will assume that has already been done.
+#when the outer flatten returns, it will re-package the output before doing so
+
+#Make the inner flatten take a sequence of statements and return a sequence of statements, flatten should concatenate these and then send to outer flatten (either inner flatten recursion or outer flatten for module)
+
+# this is the only one that needs to recurse on literals
+# the loc is the current variable-id
+# will need to generate the names n stuff
+def exprFlatten(n,loc):
+	if isinstance(n, Const):
+	    return [Assign(Name(str(loc)), n)]
+	elif isinstance(n, Add):
+	    return [Assign(Name(str(loc)), n)]
+	elif isinstance(n, UnarySub):
+	    return [Assign(Name(str(loc)), n.expr)]
+	elif isinstance(n, Name) or isinstance(n, CallFunc):
+		return [n]
+
+def discardFlatten(n):
+	if isinstance(n, CallFunc):
+		return exprFlatten(n, 0)
+	elif isinstance(n, Node):
+		return concat(map(discardFlatten,n.getChildren())) # we always get children l->r
+	else:
+		return []
+
+def printEval(n):
+	return Print(exprFlatten(n.nodes[0],0))
+
+def assFlatten(n):
+	return Assign(Name(n.nodes[0].name), exprFlatten(n.expr,0))
+
+def stmtFlatten(n):
+	def subStmtFlatten(n):
+		if isinstance(n, Discard):
+			return discardFlatten(n)
+		elif isinstance(n, Printnl):
+			return printFlatten(n)
+		elif isinstance(n, Assign):
+			return assFlatten(n)
+		else:
+			raise Exception("Unrecognized AST Node")
+	return concat(map(subStmtFlatten,n.nodes))
+
+def flatten(n):
+    return stmtFlatten(n.node)
+
 def le(n):
 	#return lispexpr(unwrap(parse(n)))
 	return unexpr(parse(n))
@@ -88,6 +160,9 @@ l = len(f)
 if f[l-1] == 'o' and f[l-2] == '.':
 	f = f[0:l-1] + 's'
 f = open(f)
+
+ast = parse(f.read())
+#CODE GOES HERE
 
 f.write("main:\npushl $5\ncall print_int_nl\nret")
 '''
