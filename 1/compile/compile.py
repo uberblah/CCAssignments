@@ -187,23 +187,6 @@ def le(n):
 	#return unexpr(parse(n))
 	#return getnames(parse(n))
 
-'''
-print "1:"
-print le("")
-print "2:"
-print le("2+2")
-print "3:"
-print le("a=2+2")
-print "4:"
-print le("a=2+2\n2+2+2+input()\nprint a")
-print "5:"
-print le("a=(2+2+(- 5))+(input()+5+2)\n2+2+2+input()\nprint a")
-print "6:"
-print le("print input() + input()")
-print "7:"
-print le("x = - input()\nprint x + input()")
-'''
-
 r = sys.argv[1]
 l = len(r)
 if r[l-1] == 'y' and r[l-2] == 'p' and r[l-3] == '.' :
