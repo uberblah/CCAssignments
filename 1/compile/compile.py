@@ -177,7 +177,7 @@ def compile(n):
 	head = genHeader(stacksize)
 	ndict = genDict(names,tmpsize)
 	ldict = genTDict(names,tmpsize)
-	foot = "leave\nret\n"
+	foot = "movl $0, %eax\nleave\nret\n"
 	return head + "\n" + compileIR(ir,ndict,ldict) + "\n" + foot
 
 def le(n):
@@ -189,11 +189,14 @@ def le(n):
 
 r = sys.argv[1]
 l = len(r)
-if r[l-1] == 'y' and r[l-2] == 'p' and r[l-3] == '.' :
-	f = r[0:l-3] + '.s'
+if r[l-3:] == '.py':
+	f = r[:l-3] + '.s'
 else:
 	f = r + '.s'
 r = open(r,'r')
 f = open(f,'w')
 
 f.write(compile(r.read()))
+
+r.close()
+f.close()
