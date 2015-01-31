@@ -1,0 +1,369 @@
+Created by PLY version 3.4 (http://www.dabeaz.com/ply)
+
+Grammar
+
+Rule 0     S' -> program
+Rule 1     program -> module
+Rule 2     module -> statement
+Rule 3     statement -> <empty>
+Rule 4     statement -> statement simple_statement
+Rule 5     simple_statement -> print expression
+Rule 6     simple_statement -> ident equal expression
+Rule 7     simple_statement -> expression
+Rule 8     expression -> minus expression
+Rule 9     expression -> expression plus expression
+Rule 10    expression -> int
+Rule 11    expression -> ident
+Rule 12    expression -> lparen expression rparen
+Rule 13    expression -> ident lparen rparen
+
+Terminals, with rules where they appear
+
+equal                : 6
+error                : 
+ident                : 6 11 13
+int                  : 10
+lparen               : 12 13
+minus                : 8
+plus                 : 9
+print                : 5
+rparen               : 12 13
+
+Nonterminals, with rules where they appear
+
+expression           : 5 6 7 8 9 9 12
+module               : 1
+program              : 0
+simple_statement     : 4
+statement            : 2 4
+
+Parsing method: LALR
+
+state 0
+
+    (0) S' -> . program
+    (1) program -> . module
+    (2) module -> . statement
+    (3) statement -> .
+    (4) statement -> . statement simple_statement
+
+    print           reduce using rule 3 (statement -> .)
+    ident           reduce using rule 3 (statement -> .)
+    minus           reduce using rule 3 (statement -> .)
+    int             reduce using rule 3 (statement -> .)
+    lparen          reduce using rule 3 (statement -> .)
+    $end            reduce using rule 3 (statement -> .)
+
+    program                        shift and go to state 1
+    statement                      shift and go to state 2
+    module                         shift and go to state 3
+
+state 1
+
+    (0) S' -> program .
+
+
+
+state 2
+
+    (2) module -> statement .
+    (4) statement -> statement . simple_statement
+    (5) simple_statement -> . print expression
+    (6) simple_statement -> . ident equal expression
+    (7) simple_statement -> . expression
+    (8) expression -> . minus expression
+    (9) expression -> . expression plus expression
+    (10) expression -> . int
+    (11) expression -> . ident
+    (12) expression -> . lparen expression rparen
+    (13) expression -> . ident lparen rparen
+
+    $end            reduce using rule 2 (module -> statement .)
+    print           shift and go to state 8
+    ident           shift and go to state 4
+    minus           shift and go to state 10
+    int             shift and go to state 6
+    lparen          shift and go to state 5
+
+    expression                     shift and go to state 9
+    simple_statement               shift and go to state 7
+
+state 3
+
+    (1) program -> module .
+
+    $end            reduce using rule 1 (program -> module .)
+
+
+state 4
+
+    (6) simple_statement -> ident . equal expression
+    (11) expression -> ident .
+    (13) expression -> ident . lparen rparen
+
+  ! shift/reduce conflict for lparen resolved as shift
+    equal           shift and go to state 11
+    plus            reduce using rule 11 (expression -> ident .)
+    print           reduce using rule 11 (expression -> ident .)
+    ident           reduce using rule 11 (expression -> ident .)
+    minus           reduce using rule 11 (expression -> ident .)
+    int             reduce using rule 11 (expression -> ident .)
+    $end            reduce using rule 11 (expression -> ident .)
+    lparen          shift and go to state 12
+
+  ! lparen          [ reduce using rule 11 (expression -> ident .) ]
+
+
+state 5
+
+    (12) expression -> lparen . expression rparen
+    (8) expression -> . minus expression
+    (9) expression -> . expression plus expression
+    (10) expression -> . int
+    (11) expression -> . ident
+    (12) expression -> . lparen expression rparen
+    (13) expression -> . ident lparen rparen
+
+    minus           shift and go to state 10
+    int             shift and go to state 6
+    ident           shift and go to state 13
+    lparen          shift and go to state 5
+
+    expression                     shift and go to state 14
+
+state 6
+
+    (10) expression -> int .
+
+    plus            reduce using rule 10 (expression -> int .)
+    print           reduce using rule 10 (expression -> int .)
+    ident           reduce using rule 10 (expression -> int .)
+    minus           reduce using rule 10 (expression -> int .)
+    int             reduce using rule 10 (expression -> int .)
+    lparen          reduce using rule 10 (expression -> int .)
+    $end            reduce using rule 10 (expression -> int .)
+    rparen          reduce using rule 10 (expression -> int .)
+
+
+state 7
+
+    (4) statement -> statement simple_statement .
+
+    print           reduce using rule 4 (statement -> statement simple_statement .)
+    ident           reduce using rule 4 (statement -> statement simple_statement .)
+    minus           reduce using rule 4 (statement -> statement simple_statement .)
+    int             reduce using rule 4 (statement -> statement simple_statement .)
+    lparen          reduce using rule 4 (statement -> statement simple_statement .)
+    $end            reduce using rule 4 (statement -> statement simple_statement .)
+
+
+state 8
+
+    (5) simple_statement -> print . expression
+    (8) expression -> . minus expression
+    (9) expression -> . expression plus expression
+    (10) expression -> . int
+    (11) expression -> . ident
+    (12) expression -> . lparen expression rparen
+    (13) expression -> . ident lparen rparen
+
+    minus           shift and go to state 10
+    int             shift and go to state 6
+    ident           shift and go to state 13
+    lparen          shift and go to state 5
+
+    expression                     shift and go to state 15
+
+state 9
+
+    (7) simple_statement -> expression .
+    (9) expression -> expression . plus expression
+
+    print           reduce using rule 7 (simple_statement -> expression .)
+    ident           reduce using rule 7 (simple_statement -> expression .)
+    minus           reduce using rule 7 (simple_statement -> expression .)
+    int             reduce using rule 7 (simple_statement -> expression .)
+    lparen          reduce using rule 7 (simple_statement -> expression .)
+    $end            reduce using rule 7 (simple_statement -> expression .)
+    plus            shift and go to state 16
+
+
+state 10
+
+    (8) expression -> minus . expression
+    (8) expression -> . minus expression
+    (9) expression -> . expression plus expression
+    (10) expression -> . int
+    (11) expression -> . ident
+    (12) expression -> . lparen expression rparen
+    (13) expression -> . ident lparen rparen
+
+    minus           shift and go to state 10
+    int             shift and go to state 6
+    ident           shift and go to state 13
+    lparen          shift and go to state 5
+
+    expression                     shift and go to state 17
+
+state 11
+
+    (6) simple_statement -> ident equal . expression
+    (8) expression -> . minus expression
+    (9) expression -> . expression plus expression
+    (10) expression -> . int
+    (11) expression -> . ident
+    (12) expression -> . lparen expression rparen
+    (13) expression -> . ident lparen rparen
+
+    minus           shift and go to state 10
+    int             shift and go to state 6
+    ident           shift and go to state 13
+    lparen          shift and go to state 5
+
+    expression                     shift and go to state 18
+
+state 12
+
+    (13) expression -> ident lparen . rparen
+
+    rparen          shift and go to state 19
+
+
+state 13
+
+    (11) expression -> ident .
+    (13) expression -> ident . lparen rparen
+
+  ! shift/reduce conflict for lparen resolved as shift
+    plus            reduce using rule 11 (expression -> ident .)
+    print           reduce using rule 11 (expression -> ident .)
+    ident           reduce using rule 11 (expression -> ident .)
+    minus           reduce using rule 11 (expression -> ident .)
+    int             reduce using rule 11 (expression -> ident .)
+    $end            reduce using rule 11 (expression -> ident .)
+    rparen          reduce using rule 11 (expression -> ident .)
+    lparen          shift and go to state 12
+
+  ! lparen          [ reduce using rule 11 (expression -> ident .) ]
+
+
+state 14
+
+    (12) expression -> lparen expression . rparen
+    (9) expression -> expression . plus expression
+
+    rparen          shift and go to state 20
+    plus            shift and go to state 16
+
+
+state 15
+
+    (5) simple_statement -> print expression .
+    (9) expression -> expression . plus expression
+
+    print           reduce using rule 5 (simple_statement -> print expression .)
+    ident           reduce using rule 5 (simple_statement -> print expression .)
+    minus           reduce using rule 5 (simple_statement -> print expression .)
+    int             reduce using rule 5 (simple_statement -> print expression .)
+    lparen          reduce using rule 5 (simple_statement -> print expression .)
+    $end            reduce using rule 5 (simple_statement -> print expression .)
+    plus            shift and go to state 16
+
+
+state 16
+
+    (9) expression -> expression plus . expression
+    (8) expression -> . minus expression
+    (9) expression -> . expression plus expression
+    (10) expression -> . int
+    (11) expression -> . ident
+    (12) expression -> . lparen expression rparen
+    (13) expression -> . ident lparen rparen
+
+    minus           shift and go to state 10
+    int             shift and go to state 6
+    ident           shift and go to state 13
+    lparen          shift and go to state 5
+
+    expression                     shift and go to state 21
+
+state 17
+
+    (8) expression -> minus expression .
+    (9) expression -> expression . plus expression
+
+    plus            reduce using rule 8 (expression -> minus expression .)
+    print           reduce using rule 8 (expression -> minus expression .)
+    ident           reduce using rule 8 (expression -> minus expression .)
+    minus           reduce using rule 8 (expression -> minus expression .)
+    int             reduce using rule 8 (expression -> minus expression .)
+    lparen          reduce using rule 8 (expression -> minus expression .)
+    $end            reduce using rule 8 (expression -> minus expression .)
+    rparen          reduce using rule 8 (expression -> minus expression .)
+
+  ! plus            [ shift and go to state 16 ]
+
+
+state 18
+
+    (6) simple_statement -> ident equal expression .
+    (9) expression -> expression . plus expression
+
+    print           reduce using rule 6 (simple_statement -> ident equal expression .)
+    ident           reduce using rule 6 (simple_statement -> ident equal expression .)
+    minus           reduce using rule 6 (simple_statement -> ident equal expression .)
+    int             reduce using rule 6 (simple_statement -> ident equal expression .)
+    lparen          reduce using rule 6 (simple_statement -> ident equal expression .)
+    $end            reduce using rule 6 (simple_statement -> ident equal expression .)
+    plus            shift and go to state 16
+
+
+state 19
+
+    (13) expression -> ident lparen rparen .
+
+    plus            reduce using rule 13 (expression -> ident lparen rparen .)
+    print           reduce using rule 13 (expression -> ident lparen rparen .)
+    ident           reduce using rule 13 (expression -> ident lparen rparen .)
+    minus           reduce using rule 13 (expression -> ident lparen rparen .)
+    int             reduce using rule 13 (expression -> ident lparen rparen .)
+    lparen          reduce using rule 13 (expression -> ident lparen rparen .)
+    $end            reduce using rule 13 (expression -> ident lparen rparen .)
+    rparen          reduce using rule 13 (expression -> ident lparen rparen .)
+
+
+state 20
+
+    (12) expression -> lparen expression rparen .
+
+    plus            reduce using rule 12 (expression -> lparen expression rparen .)
+    print           reduce using rule 12 (expression -> lparen expression rparen .)
+    ident           reduce using rule 12 (expression -> lparen expression rparen .)
+    minus           reduce using rule 12 (expression -> lparen expression rparen .)
+    int             reduce using rule 12 (expression -> lparen expression rparen .)
+    lparen          reduce using rule 12 (expression -> lparen expression rparen .)
+    $end            reduce using rule 12 (expression -> lparen expression rparen .)
+    rparen          reduce using rule 12 (expression -> lparen expression rparen .)
+
+
+state 21
+
+    (9) expression -> expression plus expression .
+    (9) expression -> expression . plus expression
+
+    plus            reduce using rule 9 (expression -> expression plus expression .)
+    print           reduce using rule 9 (expression -> expression plus expression .)
+    ident           reduce using rule 9 (expression -> expression plus expression .)
+    minus           reduce using rule 9 (expression -> expression plus expression .)
+    int             reduce using rule 9 (expression -> expression plus expression .)
+    lparen          reduce using rule 9 (expression -> expression plus expression .)
+    $end            reduce using rule 9 (expression -> expression plus expression .)
+    rparen          reduce using rule 9 (expression -> expression plus expression .)
+
+  ! plus            [ shift and go to state 16 ]
+
+WARNING: 
+WARNING: Conflicts:
+WARNING: 
+WARNING: shift/reduce conflict for lparen in state 4 resolved as shift
+WARNING: shift/reduce conflict for lparen in state 13 resolved as shift
