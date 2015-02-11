@@ -5,7 +5,7 @@ from compiler.ast import *
 from parser import parser
 import sys
 
-#sys.setrecursionlimit(2**30) # maybe needed for final submission?
+sys.setrecursionlimit(2**30) # maybe needed for final submission?
 
 #TODO: move some of this stuff outside of compile.py
 def par(n):

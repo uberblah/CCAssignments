@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 
-import ply.yacc as yacc
+import yacc
 from compiler.ast import *
 from lexer import tokens
 
