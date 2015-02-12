@@ -3,6 +3,7 @@ import copy
 G = {'w':{'x','z'},'x':{'w','y','z'},'y':{'x'},'z':{'x','w'}}
 moves = {'y':{'w'},'w':{'y'}}
 #colors = {'%eax','%ebx','%ecx','%edx','%ebi','%edi'}
+uses = {'w':3,'y':3,'x':2,'z':4}
 colors = {'%eax','%ebx','%ecx'}
 
 def counter():
@@ -60,14 +61,23 @@ def coalesce(interf,moves,colors,stack):
 				return interf,stack,merges
 	return (interf,stack,{})
 
-def justspill(interf,stack):
-	newinterf = interf
-	spilled = []
-	for i in interf.keys():
-		stack.append((i,newinterf[i]))
-		newinterf = removeNode(newinterf,i)
-		spilled.append(i)
-	return (spilled,stack)
+def spill(interf,stack,uses):
+	degrees = sorted(map(lambda x:(x,len(interf[x])),interf.keys()),key=
+			lambda x:x[1])
+	scores = sorted(map(lambda x:(x,(uses[x]+0.0)/len(interf[x])),interf.keys()),
+			key=lambda x:x[1])
+	if not len(scores):
+		return (set([]),stack)
+	i = 0
+	#newinterf = interf
+	spill = scores[0][0]
+	stack.append((spill,interf[spill]))
+	newinterf = removeNode(interf,spill)
+	#for i in interf.keys():
+	#	stack.append((i,newinterf[i]))
+	#	newinterf = removeNode(newinterf,i)
+	#	spilled.append(i)
+	return ({spill},stack)
 
 def select(stack,spilled,colors,merges):
 	choice = {}
@@ -89,12 +99,19 @@ def select(stack,spilled,colors,merges):
 						coalesceList.append(k)
 	return choice
 
-def color(interf,moves,colors):
-	interfcp = copy.deepcopy(interf)
-	clen = len(colors)
-	interf,stack = simplify(interfcp,set(moves.keys()),clen,[])
-	interf,stack,merges = coalesce(interf,moves,clen,stack)
+def color(interf,moves,colors,scores):
+	interf = copy.deepcopy(interf)
+	moves = copy.deepcopy(moves)
+	colors = copy.deepcopy(colors)
+	scores = copy.deepcopy(scores)
+	spilled = set([])
+	stack = []
+	while interf.keys():
+		clen = len(colors)
+		interf,stack = simplify(interf,set(moves.keys()),clen,stack)
+		interf,stack,merges = coalesce(interf,moves,clen,stack)
+		newspilled,stack = spill(interf,stack,uses)
+		spilled |= newspilled
 	#for i in merges.keys():
 	#	scores[i] += scores
-	spilled,stack = justspill(interf,stack)
 	return select(stack,spilled,colors,merges)
