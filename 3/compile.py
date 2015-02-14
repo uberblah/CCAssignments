@@ -197,6 +197,12 @@ main:
 pushl %ebp
 movl %esp, %ebp'''
 
+def getlocation(color):
+    if(color in col2reg):
+        return col2reg(color)[1]
+    else:
+        return str(4 * (color - 5)) + "(%esp)"
+
 def compile(n):
     def genHeader(stacksize):
         stackMake = "subl $" + str(4*stacksize) + ", %esp"
