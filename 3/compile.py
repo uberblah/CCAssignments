@@ -19,6 +19,11 @@ def getnamesIR(n): # get full set of names used by program so that we can assign
     else:
         return list(set(concat(map(getnamesIR,n))))
 
+reg2col = {("reg", "%eax"): 0, ("reg", "%ebx"): 1, ("reg", "%ecx"):2, ("reg", "%edx"):3, ("reg", "%esi"):4, ("reg", "%edi"):5}
+col2reg = {}
+for i in reg2col:
+    col2reg[reg2col[i]] = i
+
 def getnames(n): # get full set of names used by program so that we can assign to different ones
     if isinstance(n, list) or isinstance(n, tuple):
         return list(set(concat(map(getnames,n))))
@@ -230,6 +235,9 @@ def compile(n):
         print(str(i) + "->" + str(coll[i]))
     print("INTER")
     print(inter)
+    print("REGMAPS")
+    print(reg2col)
+    print(col2reg)
     return head + "\n" + compileIR(llir,ndict) + "\n" + foot
 
 def le(n):
