@@ -3,6 +3,7 @@
 from compiler import parse
 from compiler.ast import *
 from lispify import lispexpr
+from copy import deepcopy
 import sys
 
 #sys.setrecursionlimit(2**30) # maybe needed for final submission?
@@ -112,6 +113,60 @@ def HL2LLIR(n):
     tdict['call'] = lambda x: [["call", "input"], ["movl", ("reg", "%eax"), x[1]]]
     return concat(map(lambda x: tdict[x[0]](x),n))
 
+def liveness(llir):
+    live = set()
+    coll = {}
+    inter = {}
+    for i in range(len(llir) - 1, -1, -1):
+        ins = llir[i]
+        if ins[0] == "movl":
+            if not isinstance(ins[2], tuple) or ins[2][0] != "lit":
+                if ins[2] not in inter:
+                    inter[ins[2]] = set()
+                for var in live:
+                    if var != ins[1] and var != ins[2]:
+                        if(var not in inter):
+                            inter[var] = set()
+                        inter[ins[2]].add(var)
+                        inter[var].add(ins[2])
+            live.add(ins[1])
+            live.discard(ins[2])
+        elif ins[0] == "addl":
+            if not isinstance(ins[2], tuple) or ins[2][0] != "lit":
+                if ins[2] not in inter:
+                    inter[ins[2]] = set()
+                for var in live:
+                    if var != ins[1] and (not isinstance(var, tuple) or var[0] != "lit"):
+                        inter[ins[2]].add(var)
+                        if(var not in inter):
+                            inter[var] = set()
+                        inter[var].add(ins[2])
+            live.add(ins[1])
+            live.discard(ins[2])
+        elif ins[0] == "call":
+            if(("reg", "%eax") not in inter):
+                inter[("reg", "%eax")] = set()
+            if(("reg", "%ecx") not in inter):
+                inter[("reg", "%ecx")] = set()
+            if(("reg", "%edx") not in inter):
+                inter[("reg", "%edx")] = set()
+            for var in live:
+                if(var not in inter):
+                    inter[var] = set()
+                inter[var].add(("reg", "%eax"))
+                inter[("reg", "%eax")].add(var)
+                inter[var].add(("reg", "%ecx"))
+                inter[("reg", "%ecx")].add(var)
+                inter[var].add(("reg", "%edx"))
+                inter[("reg", "%edx")].add(var)
+            live.discard(("reg", "%eax"))
+        elif ins[0] == "negl":
+            live.add(ins[1])
+        elif ins[0] == "pushl":
+            live.add(ins[1])
+        coll[i] = deepcopy(live)
+    return coll, inter
+
 def compileIR(n, ndict):
     def getl(name):
         if isinstance(name, tuple):
@@ -165,7 +220,16 @@ def compile(n):
     head = genHeader(stacksize)
     foot = "movl $0, %eax\nleave\nret\n"
     llir = HL2LLIR(irasm)
+    coll, inter = liveness(llir)
     #return compileIR(llir, ndict)
+    print("CODE")
+    for i in llir:
+        print(i)
+    print("COLL")
+    for i in coll:
+        print(str(i) + "->" + str(coll[i]))
+    print("INTER")
+    print(inter)
     return head + "\n" + compileIR(llir,ndict) + "\n" + foot
 
 def le(n):
@@ -188,3 +252,4 @@ f.write(str(compile(r.read())))
 
 r.close()
 f.close()
+
