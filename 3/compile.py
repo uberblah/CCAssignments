@@ -1,78 +1,23 @@
 #!/usr/bin/env python2
 
+from compiler import parse
 from compiler.ast import *
-#from compiler import parse
-from parser import parser
+from lispify import lispexpr
 import sys
 
-sys.setrecursionlimit(2**30) # maybe needed for final submission?
-
-#TODO: move some of this stuff outside of compile.py
-def par(n):
-	return "(" + str.join(" ", filter(len,n)) + ")"
+#sys.setrecursionlimit(2**30) # maybe needed for final submission?
 
 def concat(l): # when sum() doesn't work
 	return reduce(lambda a,b: a+b, l, [])
 
-def unwrap(n): # take program AST and turn it into series of statements (no need to preserve docstring)
-	a = n.node.nodes
-	if len(a) == 1:
-		return a[0]
+def getnamesIR(n): # get full set of names used by program so that we can assign to different ones
+	if not isinstance(n, list) or not len(n):
+		return []
+	if n[0] == 'name':
+		return [n[1]]
 	else:
-		return a
+		return list(set(concat(map(getnamesIR,n))))
 
-def tablines(s, tab = "\t"):
-	s = str.split(s,"\n")
-	s = map(lambda x: tab+x, s)
-	s = str.join("\n",s)
-	return s
-
-def genTmp():
-    c = -1
-    def count():
-        c += 1
-        return c
-    return count()
-
-def unexpr(n):
-	ue = unexpr
-	if isinstance(n, list) or isinstance(n, tuple):
-		return str.join(" ",map(ue,n))
-	elif not isinstance(n, Node):
-		return str(n)
-	elif isinstance(n, Module):
-		return ue(n.node)
-	elif isinstance(n, Stmt):
-		return str.join("\n",map(ue,n.nodes))
-	elif isinstance(n, Printnl):
-		return "print " + ue(n.nodes)
-	elif isinstance(n, Assign):
-		return str.join(",",map(ue,n.nodes)) + " = " + ue(n.expr)
-	elif isinstance(n, AssName):
-		return n.name
-	elif isinstance(n, Discard):
-		return ue(n.expr)
-	elif isinstance(n, Const):
-		return str(n.value)
-	elif isinstance(n, Name):
-		return n.name
-	elif isinstance(n, Add):
-		return par([ue(n.left),"+",ue(n.right)])
-	elif isinstance(n, UnarySub):
-		return par(["-",ue(n.expr)])
-	elif isinstance(n, CallFunc):
-		return ue(n.node)+par([ue(n.args)])
-	elif isinstance(n, If):
-		lines = ["if " + ue(n.tests[0][0]) + ":\n" + tablines(ue(n.tests[0][1]))]
-		lines += map(lambda x: "elif " + ue(x[0]) + ":\n" + tablines(ue(x[1])),n.tests[1:len(n.tests)])
-		if n.else_:
-			lines += ["else:\n" + tablines(ue(n.else_))]
-		return str.join("\n",lines)
-	else:
-		#return ue(n.getChildren())
-		raise Exception("Unrecognized AST Node")
-
-# where compiler really starts: with a simple static analysis tool
 def getnames(n): # get full set of names used by program so that we can assign to different ones
 	if isinstance(n, list) or isinstance(n, tuple):
 		return list(set(concat(map(getnames,n))))
@@ -87,50 +32,60 @@ def getnames(n): # get full set of names used by program so that we can assign t
 	else:
 		return []
 
+def getGenTmp():
+    c = [-1]
+    def count():
+        c[0] += 1
+        return c[0]
+    return count
+genTmp = getGenTmp()
+
 # instead of dealing with Python AST nodes directly, translate expressions into this format
 def exprEval(n,loc):
-	if isinstance(n, Const):
-		return [['=lit',genTmp(),n.value]]
-	elif isinstance(n, Add):
-	    t1 = genTmp()
-	    t2 = genTmp()
-        return exprEval(n.left,t1) + exprEval(n.right,t2) + [['+',loc,t2,t1]]
-    elif isinstance(n, UnarySub):
-	    t1 = genTmp()
-		return exprEval(n.expr,t1) + [['-',loc,t1]]
-	elif isinstance(n, Name):
-		return [['=name',loc,n.name]]
-	elif isinstance(n, CallFunc):
+	if n[0] == 'const':
+		return [['=lit',loc,("lit", n[1])]]
+	elif n[0] == '+':
+        t1 = genTmp()
+        t2 = genTmp()
+		return exprEval(n[1],t1) + exprEval(n[2],t2) + [['+',loc,t2,t1]]
+	elif n[0] == '-':
+        t1 = genTmp()
+		return exprEval(n[1],t1) + [['-',loc,t1]]
+	elif n[0] == 'name':
+		return [['=name',loc,n[1]]]
+	elif n[0] == 'apply':
 		return [['call',loc]] # fill this out more later
 
 def discardEval(n):
-	if isinstance(n, CallFunc):
-		return exprEval(n,0)
-	elif isinstance(n, Node):
-		return concat(map(discardEval,n.getChildren())) # we always get children l->r
-	else:
+	if not isinstance(n, list):
 		return []
+	elif n[0] == 'apply':
+		return exprEval(n,genTmp())
+	else:
+		return concat(map(discardEval,n))
 
 def printEval(n):
-	return exprEval(n.nodes[0],0) + [['print']]
+    t1 = genTmp()
+	return exprEval(n[1],t1) + [['print',t1]]
 
 def assEval(n):
-	return exprEval(n.expr,0) + [['name=',0,n.nodes[0].name]]
+    t1 = genTmp()
+	return exprEval(n[2],t1) + [['name=',n[1][1],t1]]
 
 def stmtEval(n):
 	def subStmtEval(n):
-		if isinstance(n, Discard):
-			return discardEval(n)
-		elif isinstance(n, Printnl):
+		if n[0] == 'print':
 			return printEval(n)
-		elif isinstance(n, Assign):
+		elif n[0] == '=':
 			return assEval(n)
-		else:
-			raise Exception("Unrecognized AST Node")
-	return concat(map(subStmtEval,n.nodes))
+		else: #expression
+			return discardEval(n)
+	assert n[0] == 'begin', "Non-begin in stmtEval"
+	return concat(map(subStmtEval,n[1]))
 
 def progEval(n):
-	return stmtEval(n.node)
+	assert n[0] == 'prog', "Non-program"
+	return stmtEval(n[1])
 
 def getIRtmp(n):
 	ndict = {}
@@ -146,24 +101,41 @@ def getIRtmp(n):
 	#print map(lambda x: ndict[x[0]](x),n)
 	return max(map(lambda x: ndict[x[0]](x),n))
 
-def compileIR(n,ndict,ldict):
+def HL2LLIR(n):
 	tdict = {} # TODO: translation dictionary in separate file
-	tdict['=lit'] = lambda x: "movl $" + str(x[1]) + ", " + ldict[x[2]]
-	tdict['+'] = lambda x: "movl " + ldict[x[1]] + ", %eax\naddl %eax, " + ldict[x[2]]
-	tdict['-'] = lambda x: "negl " + ldict[x[1]]
-	tdict['=name'] = lambda x: "movl " + ndict[x[1]] + ", %eax\nmovl %eax, " + ldict[x[2]]
-	tdict['print'] = lambda x: "call print_int_nl" #"movl " + ldict[0] + ldict[x[1]] + "\ncall print_int_nl"#\naddl $4, %esp"
-	tdict['name='] = lambda x: "movl " + ldict[x[1]] + ", %eax\nmovl %eax, " + ndict[x[2]]
-	tdict['call'] = lambda x: "call input\nmovl %eax, " + ldict[x[1]] #"pushl %eax\npushl %ebx\npushl %edx"
-	return str.join("\n",map(lambda x: tdict[x[0]](x),n))
+	tdict['=lit'] = lambda x: [["movl", x[2], x[1]]]
+	tdict['+'] = lambda x: [["movl", x[3], x[1]], ["addl", x[2], x[1]]]
+	tdict['-'] = lambda x: [["movl", x[2], x[1]], ["negl", x[1]]]
+	tdict['=name'] = lambda x: [["movl", x[2], x[1]]]
+	tdict['print'] = lambda x: [["pushl", x[1]], ["call", "print_int_nl"], ["subl", ("lit", 1), ("reg", "%esp")]]
+	tdict['name='] = lambda x: [["movl", x[2], x[1]]]
+	tdict['call'] = lambda x: [["call", "input"], ["movl", ("reg", "%eax"), x[1]]]
+	return concat(map(lambda x: tdict[x[0]](x),n))
+
+def compileIR(n, ndict):
+    def getl(name):
+        if isinstance(name, tuple):
+            if name[0] == "reg":
+                return name[1]
+            else:
+                return "$" + str(name[1])
+        elif isinstance(name, str):
+            return name
+        else:
+            return "-" + str(4 * name) + "%(esp)"
+	tdict = {} # TODO: translation dictionary in separate file
+	tdict['movl'] = lambda x: "movl " + getl(x[1]) + ", %eax\nmovl %eax, " + getl(x[2])
+	tdict['addl'] = lambda x: "movl " + getl(x[2]) + ", %eax\naddl " + getl(x[1]) + ", %eax\nmovl %eax, " + getl(x[2])
+	tdict['negl'] = lambda x: "movl " + getl(x[1]) + ", %eax\nnegl %eax\nmovl %eax, " + getl(x[1])
+	tdict['pushl'] = lambda x: "movl " + getl(x[1]) + ", %eax\npushl %eax"
+	tdict['call'] = lambda x: "call " + getl(x[1])
+	tdict['subl'] = lambda x: "subl " + getl(x[1]) + ", " + getl(x[2])
+	return "\n".join(map(lambda x: tdict[x[0]](x),n))
 
 simpleHead = '''.global main
 main:
 pushl %ebp
 movl %esp, %ebp'''
-
-def parse(n):
-    return parser.parse(n)
 
 def compile(n):
 	def genHeader(stacksize):
@@ -171,28 +143,30 @@ def compile(n):
 		return simpleHead + "\n" + stackMake
 	def genDict(names,tmpsize):
 		ret={}
-		spot = tmpsize+1
+		spot = 0
+		#spot = tmpsize+1
+		while spot <= tmpsize:
+			ret[spot] = str(spot*4)+"(%esp)"
+			spot = spot + 1
 		for i in names:
 			ret[i] = str(spot*4)+"(%esp)"
 			spot = spot + 1
 		return ret
-	def genTDict(names,tmpsize):
-		ret={}
-		spot = 0
-		for i in range(0, tmpsize+1):
-			ret[i] = str(spot*4)+"(%esp)"
-			spot = spot + 1
-		return ret
 	ast = parse(n)
+	irhl = lispexpr(ast)
 	names = getnames(ast)
-	ir = progEval(ast)
-	tmpsize = getIRtmp(ir)
-	stacksize = tmpsize + len(names)
+	ndict = {}
+	for n in names:
+	    ndict[n] = genTmp()
+	irasm = progEval(irhl)
+	#tmpsize = getIRtmp(irasm)
+	#stacksize = tmpsize + len(names)
+	stacksize = genTmp()
 	head = genHeader(stacksize)
-	ndict = genDict(names,tmpsize)
-	ldict = genTDict(names,tmpsize)
 	foot = "movl $0, %eax\nleave\nret\n"
-	return head + "\n" + compileIR(ir,ndict,ldict) + "\n" + foot
+	llir = HL2LLIR(irasm)
+	#return compileIR(llir, ndict)
+	return head + "\n" + compileIR(llir,ndict) + "\n" + foot
 
 def le(n):
 	return compile(n)
@@ -210,7 +184,7 @@ else:
 r = open(r,'r')
 f = open(f,'w')
 
-f.write(compile(r.read()))
+f.write(str(compile(r.read())))
 
 r.close()
 f.close()
