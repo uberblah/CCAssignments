@@ -4,6 +4,7 @@ from compiler import parse
 from compiler.ast import *
 from lispify import lispexpr
 from copy import deepcopy
+import dsatur
 import sys
 
 #sys.setrecursionlimit(2**30) # maybe needed for final submission?
@@ -117,6 +118,32 @@ def HL2LLIR(n):
     tdict['name='] = lambda x: [["movl", x[2], x[1]]]
     tdict['call'] = lambda x: [["call", "input"], ["movl", ("reg", "%eax"), x[1]]]
     return concat(map(lambda x: tdict[x[0]](x),n))
+
+#return set of unspillables
+#return dict of unspillable precolorings
+#return new ir with unspillable movls
+def spillIR(irin, choices):
+    ir = deepcopy(irin)
+    tdict = {}
+    tset = set()
+    #movl->movl to reg, movl to mem
+    #addl->movl to reg, addl to mem
+    #negl->movl to reg, negl reg, movl to mem
+    sdict = {}
+    tmp = 0
+    sdict['movl'] = lambda x: [["movl", x[1], tmp], ["movl", tmp, x[2]]]
+    sdict['addl'] = lambda x: [["movl", x[1], tmp], ["addl", tmp, x[2]]]
+    sdict['negl'] = lambda x: [["movl", x[1], tmp], ["negl", tmp], ["movl", tmp, x[1]]]
+    for i in range(0, len(ir)):
+        ins = ir[i]
+        if len(ins) > 2 and not isinstance(ins[1], tuple) and choices[ins[1]] > 5 and not isinstance(ins[2], tuple) and choices[ins[2]] > 5:
+            tmp = genTmp()
+            tset.add(tmp)
+            newins = sdict[ins[0]](ins)
+            ir.pop(i)
+            for newi in range(0, len(newins)):
+                ir.insert(i + newi, newins[newi])
+    return ir, tset
 
 def liveness(llir):
     live = set()
@@ -233,17 +260,23 @@ def compile(n):
     llir = HL2LLIR(irasm)
     coll, inter = liveness(llir)
     #return compileIR(llir, ndict)
-    print("CODE")
-    for i in llir:
-        print(i)
-    print("COLL")
-    for i in coll:
-        print(str(i) + "->" + str(coll[i]))
-    print("INTER")
-    print(inter)
-    print("REGMAPS")
-    print(reg2col)
-    print(col2reg)
+    #print("CODE")
+    #for i in llir:
+    #    print(i)
+    #print("COLL")
+    #for i in coll:
+    #    print(str(i) + "->" + str(coll[i]))
+    #print("INTER")
+    #print(inter)
+    #print("REGMAPS")
+    #print(reg2col)
+    #print(col2reg)
+    choices = dsatur.dsatur(inter, reg2col, set([]))
+    newir, uspill = spillIR(llir, choices)
+    print("NEW IR")
+    print(newir)
+    print("UNSPILLABLES")
+    print(uspill)
     return head + "\n" + compileIR(llir,ndict) + "\n" + foot
 
 def le(n):
