@@ -1,10 +1,10 @@
 import copy
-G = {'w':{'x','z'},'x':{'w','y','z'},'y':{'x'},'z':{'x','w'}}
-pre = {'x':0,'y':6}
+#G = {'w':{'x','z'},'x':{'w','y','z'},'y':{'x'},'z':{'x','w'}}
+#pre = {'x':0,'y':6}
 #moves = {'y':{'w'},'w':{'y'}}
 #colors = {'%eax','%ebx','%ecx','%edx','%ebi','%edi'}
 #uses = {'w':3,'y':3,'x':2,'z':4}
-colors = {'%eax','%ebx','%ecx'}
+#colors = {'%eax','%ebx','%ecx'}
 
 def dsatur(interf,pre,unspill):
 	colors = {}
@@ -25,3 +25,16 @@ def dsatur(interf,pre,unspill):
 		colors[i] = c
 		keys.sort(key=sat)
 	return colors
+
+#dsatur(interf,pre,set([]))
+#choices = dsatur(interf,reg2col,set([]))
+
+def mergedict(a,b):
+	return dict(a.items() + b.items())
+
+def getspill(choices):
+	spill = {}
+	for i in choices.keys():
+		if choices[i] > 5:
+			spill[i] = choices[i]
+	return spill
