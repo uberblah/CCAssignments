@@ -123,9 +123,19 @@ def HL2LLIR(n):
 #return dict of unspillable precolorings
 #return new ir with unspillable movls
 def spillIR(irin, choices):
+    nospill = True
+    def shouldSpill(ins):
+        if ins[0] == "negl":
+            if not isinstance(ins[1], tuple):
+                return ins[1] in choices and choices[ins[1]] > 5
+            return False
+        elif ins[0] == "movl" or ins[0] == "addl":
+            if not isinstance(ins[1], tuple) and not isinstance(ins[2], tuple):
+                return ins[1] in choices and ins[2] in choices and (choices[ins[1]] > 5 and choices[ins[2]] > 5)
+            return False
+        return False
     ir = deepcopy(irin)
-    tdict = {}
-    tset = set()
+    tset = set([])
     #movl->movl to reg, movl to mem
     #addl->movl to reg, addl to mem
     #negl->movl to reg, negl reg, movl to mem
@@ -136,23 +146,27 @@ def spillIR(irin, choices):
     sdict['negl'] = lambda x: [["movl", x[1], tmp], ["negl", tmp], ["movl", tmp, x[1]]]
     for i in range(0, len(ir)):
         ins = ir[i]
-        if len(ins) > 2 and not isinstance(ins[1], tuple) and choices[ins[1]] > 5 and not isinstance(ins[2], tuple) and choices[ins[2]] > 5:
+        if shouldSpill(ins):
+            print(ins)
+            nospill = False
             tmp = genTmp()
             tset.add(tmp)
             newins = sdict[ins[0]](ins)
             ir.pop(i)
             for newi in range(0, len(newins)):
                 ir.insert(i + newi, newins[newi])
-    return ir, tset
+    return ir, tset, nospill
 
 def liveness(llir):
+    def islit(item):
+        return isinstance(item, tuple) and item[0] == "lit"
     live = set()
     coll = {}
     inter = {}
     for i in range(len(llir) - 1, -1, -1):
         ins = llir[i]
         if ins[0] == "movl":
-            if not isinstance(ins[2], tuple) or ins[2][0] != "lit":
+            if not islit(ins[1]):
                 if ins[2] not in inter:
                     inter[ins[2]] = set()
                 for var in live:
@@ -161,19 +175,19 @@ def liveness(llir):
                             inter[var] = set()
                         inter[ins[2]].add(var)
                         inter[var].add(ins[2])
-            live.add(ins[1])
+                live.add(ins[1])
             live.discard(ins[2])
         elif ins[0] == "addl":
-            if not isinstance(ins[2], tuple) or ins[2][0] != "lit":
+            if not islit(ins[1]):
                 if ins[2] not in inter:
                     inter[ins[2]] = set()
                 for var in live:
-                    if var != ins[1] and (not isinstance(var, tuple) or var[0] != "lit"):
+                    if var != ins[1] and not islit(ins[1]):
                         inter[ins[2]].add(var)
                         if(var not in inter):
                             inter[var] = set()
                         inter[var].add(ins[2])
-            live.add(ins[1])
+                live.add(ins[1])
             live.discard(ins[2])
         elif ins[0] == "call":
             if(("reg", "%eax") not in inter):
@@ -195,7 +209,8 @@ def liveness(llir):
         elif ins[0] == "negl":
             live.add(ins[1])
         elif ins[0] == "pushl":
-            live.add(ins[1])
+            if not isinstance(ins[1], tuple) or ins[1][0] != "lit":
+                live.add(ins[1])
         coll[i] = deepcopy(live)
     return coll, inter
 
@@ -252,39 +267,23 @@ def compile(n):
     for n in names:
         ndict[n] = genTmp()
     irasm = progEval(irhl)
-    #tmpsize = getIRtmp(irasm)
-    #stacksize = tmpsize + len(names)
     stacksize = genTmp()
     head = genHeader(stacksize)
     foot = "movl $0, %eax\nleave\nret\n"
     llir = HL2LLIR(irasm)
     coll, inter = liveness(llir)
-    #return compileIR(llir, ndict)
-    #print("CODE")
-    #for i in llir:
-    #    print(i)
-    #print("COLL")
-    #for i in coll:
-    #    print(str(i) + "->" + str(coll[i]))
-    #print("INTER")
-    #print(inter)
-    #print("REGMAPS")
-    #print(reg2col)
-    #print(col2reg)
-    choices = dsatur.dsatur(inter, reg2col, set([]))
-    newir, uspill = spillIR(llir, choices)
-    print("NEW IR")
-    print(newir)
-    print("UNSPILLABLES")
-    print(uspill)
+    newspill = set([])
+    choices = dsatur.dsatur(inter, reg2col, newspill)
+    llir, uspill, nospill = spillIR(llir, choices)
+    while(not nospill):
+        coll, inter = liveness(llir)
+        newspill = newspill | uspill
+        choices = dsatur.dsatur(inter, dsatur.mergedict(reg2col, dsatur.getspill(choices)), newspill)
+        llir, uspill, nospill = spillIR(llir, choices)
     return head + "\n" + compileIR(llir,ndict) + "\n" + foot
 
 def le(n):
     return compile(n)
-    #return progEval(parse(n))
-    #return lispexpr(unwrap(parse(n)))
-    #return unexpr(parse(n))
-    #return getnames(parse(n))
 
 r = sys.argv[1]
 l = len(r)

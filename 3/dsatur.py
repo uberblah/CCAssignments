@@ -7,6 +7,8 @@ import copy
 #colors = {'%eax','%ebx','%ecx'}
 
 def dsatur(interf,pre,unspill):
+	#print("THIS IS A DICTIONARY!")
+	#print interf
 	colors = {}
 	def intcol(i):
 		a = filter(lambda x:x in colors, interf[i])
@@ -24,7 +26,9 @@ def dsatur(interf,pre,unspill):
 			c += 1
 		colors[i] = c
 		keys.sort(key=sat)
-	return colors
+	#print "THIS IS THE COLORS!!!"
+	#print colors
+	return mergedict(colors,pre)
 
 #dsatur(interf,pre,set([]))
 #choices = dsatur(interf,reg2col,set([]))
