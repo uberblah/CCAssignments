@@ -114,7 +114,7 @@ def HL2LLIR(n):
     tdict['+'] = lambda x: [["movl", x[3], x[1]], ["addl", x[2], x[1]]]
     tdict['-'] = lambda x: [["movl", x[2], x[1]], ["negl", x[1]]]
     tdict['=name'] = lambda x: [["movl", x[2], x[1]]]
-    tdict['print'] = lambda x: [["pushl", x[1]], ["call", "print_int_nl"], ["subl", ("lit", 1), ("reg", "%esp")]]
+    tdict['print'] = lambda x: [["pushl", x[1]], ["call", "print_int_nl"], ["subl", ("lit", -4), ("reg", "%esp")]]
     tdict['name='] = lambda x: [["movl", x[2], x[1]]]
     tdict['call'] = lambda x: [["call", "input"], ["movl", ("reg", "%eax"), x[1]]]
     return concat(map(lambda x: tdict[x[0]](x),n))
@@ -147,7 +147,6 @@ def spillIR(irin, choices):
     for i in range(0, len(ir)):
         ins = ir[i]
         if shouldSpill(ins):
-            print(ins)
             nospill = False
             tmp = genTmp()
             tset.add(tmp)
@@ -166,27 +165,31 @@ def liveness(llir):
     for i in range(len(llir) - 1, -1, -1):
         ins = llir[i]
         if ins[0] == "movl":
+            if ins[1] not in inter:
+                inter[ins[1]] = set()
+            if ins[2] not in inter:
+                inter[ins[2]] = set()
+            for var in live:
+                if var != ins[2]:
+                    if(var not in inter):
+                        inter[var] = set()
+                    inter[ins[2]].add(var)
+                    inter[var].add(ins[2])
             if not islit(ins[1]):
-                if ins[2] not in inter:
-                    inter[ins[2]] = set()
-                for var in live:
-                    if var != ins[1] and var != ins[2]:
-                        if(var not in inter):
-                            inter[var] = set()
-                        inter[ins[2]].add(var)
-                        inter[var].add(ins[2])
                 live.add(ins[1])
             live.discard(ins[2])
         elif ins[0] == "addl":
+            if ins[1] not in inter:
+                inter[ins[1]] = set()
+            if ins[2] not in inter:
+                inter[ins[2]] = set()
+            for var in live:
+                if var != ins[1]:
+                    inter[ins[2]].add(var)
+                    if(var not in inter):
+                        inter[var] = set()
+                    inter[var].add(ins[2])
             if not islit(ins[1]):
-                if ins[2] not in inter:
-                    inter[ins[2]] = set()
-                for var in live:
-                    if var != ins[1] and not islit(ins[1]):
-                        inter[ins[2]].add(var)
-                        if(var not in inter):
-                            inter[var] = set()
-                        inter[var].add(ins[2])
                 live.add(ins[1])
             live.discard(ins[2])
         elif ins[0] == "call":
@@ -209,30 +212,50 @@ def liveness(llir):
         elif ins[0] == "negl":
             live.add(ins[1])
         elif ins[0] == "pushl":
-            if not isinstance(ins[1], tuple) or ins[1][0] != "lit":
+            if not islit(ins[1]):
+                if ins[1] not in inter:
+                    inter[ins[1]] = set()
                 live.add(ins[1])
         coll[i] = deepcopy(live)
     return coll, inter
 
-def compileIR(n, ndict):
-    def getl(name):
-        if isinstance(name, tuple):
-            if name[0] == "reg":
-                return name[1]
-            else:
-                return "$" + str(name[1])
-        elif isinstance(name, str):
-            return getl(ndict[name])
+def compileIR(n, ndict, choices):
+    def tmovl(x):
+        a = getl(x[1])
+        b = getl(x[2])
+        if a == b:
+            return ""
         else:
-            return str(4 * name) + "(%esp)"
+            return "movl " + a + ", " + b
+    def tpushl(x):
+        a = getl(x[1])
+        if a == "%eax":
+            return "pushl %eax"
+        else:
+            return "movl " + getl(x[1]) + ", %eax\npushl %eax"
+    def islit(item):
+        return isinstance(item, tuple) and item[0] == "lit"
+    def getl(name):
+        #things that name could be...
+        #'varname'
+        #tmpvarid
+        #reg tuple
+        #lit tuple
+        if not isinstance(name, tuple):
+            return getlocation(choices[name])# + "/*" + str(name) + "*/"
+        else:
+            if name[0] == "reg":
+                return str(name[1])# + "/*" + str(name) + "*/"
+            else:
+                return "$" + str(name[1])# + "/*" + str(name) + "*/"
     tdict = {} # TODO: translation dictionary in separate file
-    tdict['movl'] = lambda x: "movl " + getl(x[1]) + ", %eax\nmovl %eax, " + getl(x[2])
-    tdict['addl'] = lambda x: "movl " + getl(x[2]) + ", %eax\naddl " + getl(x[1]) + ", %eax\nmovl %eax, " + getl(x[2])
-    tdict['negl'] = lambda x: "movl " + getl(x[1]) + ", %eax\nnegl %eax\nmovl %eax, " + getl(x[1])
-    tdict['pushl'] = lambda x: "movl " + getl(x[1]) + ", %eax\npushl %eax"
+    tdict['movl'] = lambda x: tmovl(x)
+    tdict['addl'] = lambda x: "addl " + getl(x[1]) + ", " + getl(x[2])
+    tdict['negl'] = lambda x: "negl " + getl(x[1])
+    tdict['pushl'] = lambda x: tpushl(x)
     tdict['call'] = lambda x: "call " + x[1]
     tdict['subl'] = lambda x: "subl " + getl(x[1]) + ", " + getl(x[2])
-    return "\n".join(map(lambda x: tdict[x[0]](x),n))
+    return "\n".join(filter(lambda x: len(x), map(lambda x: tdict[x[0]](x),n)))
 
 simpleHead = '''.global main
 main:
@@ -241,7 +264,7 @@ movl %esp, %ebp'''
 
 def getlocation(color):
     if(color in col2reg):
-        return col2reg(color)[1]
+        return col2reg[color][1]
     else:
         return str(4 * (color - 5)) + "(%esp)"
 
@@ -275,12 +298,33 @@ def compile(n):
     newspill = set([])
     choices = dsatur.dsatur(inter, reg2col, newspill)
     llir, uspill, nospill = spillIR(llir, choices)
+    #print("CODE")
+    #for c in llir:
+    #    print(c)
+    #print("COLL")
+    #print(coll)
+    #print("INTERFERENCE")
+    #print(inter)
+    #print("CHOICES")
+    #print(choices)
     while(not nospill):
         coll, inter = liveness(llir)
         newspill = newspill | uspill
         choices = dsatur.dsatur(inter, dsatur.mergedict(reg2col, dsatur.getspill(choices)), newspill)
         llir, uspill, nospill = spillIR(llir, choices)
-    return head + "\n" + compileIR(llir,ndict) + "\n" + foot
+    #print("CHOICES")
+    #print(choices)
+    #print("CODE")
+    #idx = 0
+    #for l in llir:
+    #    print(str(idx) + "->" + str(l))
+    #    idx += 1
+    #print("PER-LINE LIVENESS")
+    #for l in coll:
+    #    print(str(l) + "->" + str(coll[l]))
+    #print("INTERFERENCE")
+    #print(inter)
+    return head + "\n" + compileIR(llir,ndict,choices) + "\n" + foot
 
 def le(n):
     return compile(n)
