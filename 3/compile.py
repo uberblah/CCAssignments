@@ -290,9 +290,6 @@ def compile(n):
     for n in names:
         ndict[n] = genTmp()
     irasm = progEval(irhl)
-    stacksize = genTmp()
-    head = genHeader(stacksize)
-    foot = "movl $0, %eax\nleave\nret\n"
     llir = HL2LLIR(irasm)
     coll, inter = liveness(llir)
     newspill = set([])
@@ -324,6 +321,11 @@ def compile(n):
     #    print(str(l) + "->" + str(coll[l]))
     #print("INTERFERENCE")
     #print(inter)
+    
+    #stacksize = genTmp()
+    stacksize = dsatur.maxspill(choices)+4
+    head = genHeader(stacksize)
+    foot = "movl $0, %eax\nleave\nret\n"
     return head + "\n" + compileIR(llir,ndict,choices) + "\n" + foot
 
 def le(n):
