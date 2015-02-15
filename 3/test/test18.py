@@ -3,8 +3,9 @@ b = 2
 c = 3
 d = 4
 e = 5
-g = 6
-h = 7
+f = 6
+g = 7
+h = 8
 print a
 print b
 print c
