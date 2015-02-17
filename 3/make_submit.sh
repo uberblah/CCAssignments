@@ -1,6 +1,6 @@
 #!/bin/sh
 
-cp ../../runtime/*.o ./
+cp ../runtime/*.o ./
 zip compile.zip *.py *.o
 rm *.o
 

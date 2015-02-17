@@ -307,6 +307,13 @@ def compile(n):
     while(not nospill):
         coll, inter = liveness(llir)
         newspill = newspill | uspill
+	if 56 in inter:
+		for i in coll:
+			print i
+		for i in llir:
+			print i
+		print inter
+		print inter[56]
         choices = dsatur.dsatur(inter, dsatur.mergedict(reg2col, dsatur.getspill(choices)), newspill)
         llir, uspill, nospill = spillIR(llir, choices)
     #print("CHOICES")

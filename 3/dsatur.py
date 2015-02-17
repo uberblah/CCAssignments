@@ -49,11 +49,14 @@ def dsatur(interf,pre,unspill):
 		spill.append(i)
 		keys.remove(i)
 		del neighbors[i]
+	def forcecolor(i,c):
+		colors[i] = c
+		updatecol(i,c)
 	def updatecol(i,c):
 		#print i,c
 		#c = colors[i]
-		#if not i in neighbors:
-		#	return
+		if not i in neighbors:
+			return
 		for j in neighbors[i]:
 			if j in neighbors:
 				#print i,j
@@ -72,6 +75,8 @@ def dsatur(interf,pre,unspill):
 							while x in collision[j]:
 								x += 1
 							mincolor[j] = x
+						if saturate[j] >= 5 and j in unspill:
+							forcecolor(j,x)
 		del neighbors[i]
 	def sat(i):
 		return saturate[i]
@@ -88,11 +93,9 @@ def dsatur(interf,pre,unspill):
 			x = i[0]
 			preneighbors[x] = neighbors[x]
 			del neighbors[x]
-	for i in pre.items():
-		if i[1] <= 5 and i[0] in preneighbors:
-			x = i[0]
-			neighbors[x] = preneighbors[x]
-			updatecol(x,i[1])
+	for i in preneighbors.keys():
+		neighbors[i] = preneighbors[i]
+		updatecol(i,pre[i])
 
 	while keys:
 		keys.sort(key=sat)
