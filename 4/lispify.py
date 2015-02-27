@@ -1,10 +1,11 @@
 #!/usr/bin/env python2
 
+from compiler import parse
 from compiler.ast import *
 from tmp import *
 
 def getASTNames(t):
-	if isinstance(t,string):
+	if isinstance(t,str):
 		return t
 	elif isinstance(t,list) or isinstance(t,tuple):
 		return reduce(lambda x,y:x|y,getASTNames(t.getChildren()))
@@ -14,8 +15,9 @@ def getASTNames(t):
 		return set([])
 
 def lispexpr(n):
-	names = getASTNames(n)
+	names = getStrings(n)
 	prefix = getPrefix(names,prefix = '__CCLet__')
+	genTmp = genTmpCount(prefix)
 	def lispexpr_rec(n):
 		le=lispexpr_rec
 		if isinstance(n,list) or isinstance(n,tuple):
@@ -47,13 +49,13 @@ def lispexpr(n):
 		elif isinstance(n, IfExp):
 			return ['ifexp'] + map(le,n.getChildren())
 		elif isinstance(n, CallFunc):
-			return ['apply',['name',le(n.node)],le(n.args)]
+			return ['apply',le(n.node),le(n.args)]
 		elif isinstance(n, Or):
-			t = genTmp(prefix)
+			t = genTmp()
 			return ['let',t,le(n.left),['ifexp',t,t,le(n.right)]]
 		elif isinstance(n, And):
-			t = genTmp(prefix)
-			return ['let',t,le(n.left),['ifexp',t,le(n.right),t]]
+			t = genTmp()
+			return ['let',t,le(n.nodes[0]),['ifexp',t,le(n.nodes[1]),t]]
 		elif isinstance(n, Not):
 			return ['ifexp',le(n.expr),['const',False],['const',True]]
 		elif isinstance(n, Compare):

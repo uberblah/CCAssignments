@@ -44,7 +44,6 @@ def getStrings(n): # as long as the structure isn't circular
 	elif isinstance(n,object):
 		for i in dir(n):
 			s.add(i)
-			print i
 			try:
 				s |= getStrings(n.__dict__[i])
 			except:
