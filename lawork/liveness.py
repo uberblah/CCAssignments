@@ -113,9 +113,16 @@ def hasedge(graph, pair):
     return pair[1] in graph[pair[0]]
 
 def sedge(pair): #sort an edge for comparability
+    if isinstance(pair[0], tuple):
+        if isinstance(pair[1], tuple):
+            return tuple(sorted(pair))
+        return (pair[0], pair[1])
+    elif isinstance(pair[1], tuple):
+        return (pair[1], pair[0])
     return tuple(sorted(pair))
 
 def interference(lives, rwis):
+    ret_interf = dict()
     interf = set() #all interferences, built up as we iterate
     idents = set() #all current identities, changes as we iterate
     for idx in range(len(lives)): #for each instruction (Lbefore)
@@ -123,14 +130,15 @@ def interference(lives, rwis):
         for pair in rwis[idx]["ident"]: #identities from the current instruction
             idcand.add(sedge(pair)) #add to candidate identities
         idcand -= interf #filter out edges already in interference set
-        idcand = filter(lambda x: x[0] != x[1], idcand) #filter self-edges
-        
+        idcand = set(filter(lambda x: x[0] != x[1], idcand)) #filter self-edges
         live = lives[idx] #currently live variables
         iset = set() #set of locally interfering variables
         for r in rwis[idx]["read"]: #add all read-vars to local interference
             iset.add(r)
+            mknode(ret_interf, r)
         for w in rwis[idx]["write"]: #add all write-vars to local interference
             iset.add(w)
+            mknode(ret_interf, w)
         iint = set() #set of local interference edges
         for a in iset:
             for b in iset:
@@ -138,17 +146,16 @@ def interference(lives, rwis):
                     iint.add(sedge((a, b)))
         iint -= idcand
         idents -= iint
-        interf += iint
-        idents += idcand
-    ret_interf = dict()
+        interf |= iint
+        idents |= idcand
     for edge in interf:
         addedge(ret_interf, edge)
     return ret_interf
 
 def printinter(inter):
     print("{")
-    for node in printinter(inter):
-        print("    " + str(node))
+    for node in inter:
+        print("    " + str(node) + str(inter[node]))
     print("}")
 
 def testliveness():

@@ -4,6 +4,7 @@ from compiler import parse
 from compiler.ast import *
 from lispify import lispexpr
 from copy import deepcopy
+from liveness import *
 import dsatur
 import sys
 
@@ -46,7 +47,6 @@ def getGenTmp():
         return c[0]
     return count
 genTmp = getGenTmp()
-genLabel = getGenTmp()
 
 # instead of dealing with Python AST nodes directly, translate expressions into this format
 def exprEval(n,loc):
@@ -128,11 +128,11 @@ def spillIR(irin, choices):
     def shouldSpill(ins):
         if ins[0] == "negl":
             if not isinstance(ins[1], tuple):
-                return ins[1] in choices and choices[ins[1]] > len(reg2col)
+                return ins[1] in choices and choices[ins[1]] > 5
             return False
         elif ins[0] == "movl" or ins[0] == "addl":
             if not isinstance(ins[1], tuple) and not isinstance(ins[2], tuple):
-                return ins[1] in choices and ins[2] in choices and (choices[ins[1]] > 5 and choices[ins[2]] > len(reg2col))
+                return ins[1] in choices and ins[2] in choices and (choices[ins[1]] > 5 and choices[ins[2]] > 5)
             return False
         return False
     ir = deepcopy(irin)
@@ -157,47 +157,7 @@ def spillIR(irin, choices):
                 ir.insert(i + newi, newins[newi])
     return ir, tset, nospill
 
-#possible solution: have an 'unused except assignments-from' set
-#pre-pass: need a table for instruction read/write/ident indices
-ins2rwi = {"movl": {"read": [1], "write": [2], "ident": [(1, 2)]}\
-"addl": {"read": [1, 2], "write": [2], "ident": []}
-"subl": {"read": [1, 2], "write": [2], "ident": []}
-"negl": {"read": [1], "write": [1], "ident": []}
-"pushl": {"read": [1], "write": [], "ident": []}
-"call": {"read": [], "write": [], "ident": []}
-}
-#pass 0: determine the reads and writes of each instruction, by var, not idx
-def llir2rwi(llir):
-    def islit(item):
-        return isinstance(item, tuple) and item[0] == "lit"
-    #a list of tables
-    rwi = []
-    for ins in llir:
-        
-        
-        
-    
-#pass 1: determine liveness and identity
-def liveness(llir):
-    def islit(item):
-        return isinstance(item, tuple) and item[0] == "lit"
-    live = set()
-    coll = {}
-    ident = {}
-    for i in range(len(llir) - 1, -1, -1):
-        ins = llir[i]
-        iname = ins[0]
-        for var in ins2rwi[iname]["read"]:
-            if var not in ins2rwi[iname]["write"] and not islit(var):
-                liveness.add(var)
-        for var in ins2rwi[iname]["write"]:
-            if var not in ins2rwi[iname]["read"] and not islit(var):
-                liveness.discard(var)
-        #for each pair of items that are identical
-        #add them to the identity  graph
-        
-    
-#pass 2: generate interference graph using the pre-pass table
+"""
 def liveness(llir):
     def islit(item):
         return isinstance(item, tuple) and item[0] == "lit"
@@ -260,6 +220,7 @@ def liveness(llir):
                 live.add(ins[1])
         coll[i] = deepcopy(live)
     return coll, inter
+"""
 
 def compileIR(n, ndict, choices):
     def tmovl(x):
@@ -333,7 +294,9 @@ def compile(n):
         ndict[n] = genTmp()
     irasm = progEval(irhl)
     llir = HL2LLIR(irasm)
-    coll, inter = liveness(llir)
+    rwis = llir2rwis(llir)
+    lives = liveness_a(rwis)
+    inter = interference(lives, rwis)
     newspill = set([])
     choices = dsatur.dsatur(inter, reg2col, newspill)
     llir, uspill, nospill = spillIR(llir, choices)
@@ -347,8 +310,17 @@ def compile(n):
     #print("CHOICES")
     #print(choices)
     while(not nospill):
-        coll, inter = liveness(llir)
+        rwis = llir2rwis(llir)
+        lives = liveness_a(rwis)
+        inter = interference(lives, rwis)
         newspill = newspill | uspill
+	if 56 in inter:
+		for i in coll:
+			print i
+		for i in llir:
+			print i
+		print inter
+		print inter[56]
         choices = dsatur.dsatur(inter, dsatur.mergedict(reg2col, dsatur.getspill(choices)), newspill)
         llir, uspill, nospill = spillIR(llir, choices)
     #print("CHOICES")
