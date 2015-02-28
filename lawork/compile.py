@@ -173,7 +173,8 @@ def spillIR(ir,choices):
 	sdict['is'] = isspill
 	sdict['add'] = addspill
 	newir = concat(map(lookup,ir))
-	return newir,spills,spilled
+	print newir,spills
+	return newir,spills,spilled[0]
 
 '''
 def spillIR(irin, choices):
@@ -294,10 +295,10 @@ def compile(n):
     #    print(c)
     newspill = set([])
     choices = dsatur.dsatur(inter, reg2col, newspill)
-    llir, uspill, nospill = spillIR(llir, choices)
+    llir, uspill, didspill = spillIR(llir, choices)
     #print("HELLO, USPILL!")
     #print(uspill)
-    while(not nospill):
+    while(didspill):
         rwis = llir2rwis(llir)
         lives = liveness_a(rwis)
         inter = interference(lives, rwis)
@@ -309,7 +310,9 @@ def compile(n):
         #    print(str(c) + "->" + str(inter[c]) + "\n")
         newspill = newspill | uspill
         choices = dsatur.dsatur(inter, reg2col, newspill)
-        llir, uspill, nospill = spillIR(llir, choices)
+        llir, uspill, didspill = spillIR(llir, choices)
+    #print llir, choices
+    print choices
     stacksize = dsatur.maxspill(choices)+4
     head = genHeader(stacksize)
     foot = "movl $0, %eax\nleave\nret\n"

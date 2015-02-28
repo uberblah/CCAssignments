@@ -82,8 +82,8 @@ def dsatur(interf,pre,unspill):
 							while x in collision[j]:
 								x += 1
 							mincolor[j] = x
-						#if saturate[j] >= 5 and j in unspill:
-						#	forcecolor(j,x)
+						if saturate[j] >= 5 and j in unspill:
+							forcecolor(j,x)
 		del neighbors[i]
 	def sat(i):
 		return saturate[i]

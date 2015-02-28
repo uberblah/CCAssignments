@@ -145,6 +145,7 @@ cmpl $3,<reg>
 je <clab>
 movl <a>,<reg>
 addl <b>,<reg>
+andl $0xFFFFFFFC,<reg>
 movl <reg>,<c>
 jmp <plab>
 <clab>:
