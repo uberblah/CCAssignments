@@ -164,6 +164,7 @@ def spillIR(irin, choices):
 	sdict['movl'] = lambda x: [["movl", x[1], tmp], ["movl", tmp, x[2]]]
 	sdict['addl'] = lambda x: [["movl", x[1], tmp], ["addl", tmp, x[2]]]
 	sdict['negl'] = lambda x: [["movl", x[1], tmp], ["negl", tmp], ["movl", tmp, x[1]]]
+	sdict['is'] = lambda x: [["movl", x[1], tmp], ['is', tmp, x[2], x[3]]]
 	for i in range(0, len(ir)):
 		ins = ir[i]
 		if shouldSpill(ins):
@@ -175,69 +176,6 @@ def spillIR(irin, choices):
 			for newi in range(0, len(newins)):
 				ir.insert(i + newi, newins[newi])
 	return ir, tset, nospill
-
-def liveness(llir):
-	def islit(item):
-		return isinstance(item, tuple) and item[0] == "lit"
-	live = set()
-	coll = {}
-	inter = {}
-	for i in range(len(llir) - 1, -1, -1):
-		ins = llir[i]
-		if ins[0] == "movl":
-			if ins[1] not in inter:
-				inter[ins[1]] = set()
-			if ins[2] not in inter:
-				inter[ins[2]] = set()
-			for var in live:
-				if var != ins[2]:
-					if(var not in inter):
-						inter[var] = set()
-					inter[ins[2]].add(var)
-					inter[var].add(ins[2])
-			if not islit(ins[1]):
-				live.add(ins[1])
-			live.discard(ins[2])
-		elif ins[0] == "addl":
-			if ins[1] not in inter:
-				inter[ins[1]] = set()
-			if ins[2] not in inter:
-				inter[ins[2]] = set()
-			for var in live:
-				if var != ins[1]:
-					inter[ins[2]].add(var)
-					if(var not in inter):
-						inter[var] = set()
-					inter[var].add(ins[2])
-			if not islit(ins[1]):
-				live.add(ins[1])
-			live.discard(ins[2])
-		elif ins[0] == "call":
-			if(("reg", "%eax") not in inter):
-				inter[("reg", "%eax")] = set()
-			if(("reg", "%ecx") not in inter):
-				inter[("reg", "%ecx")] = set()
-			if(("reg", "%edx") not in inter):
-				inter[("reg", "%edx")] = set()
-			for var in live:
-				if(var not in inter):
-					inter[var] = set()
-				inter[var].add(("reg", "%eax"))
-				inter[("reg", "%eax")].add(var)
-				inter[var].add(("reg", "%ecx"))
-				inter[("reg", "%ecx")].add(var)
-				inter[var].add(("reg", "%edx"))
-				inter[("reg", "%edx")].add(var)
-			live.discard(("reg", "%eax"))
-		elif ins[0] == "negl":
-			live.add(ins[1])
-		elif ins[0] == "pushl":
-			if not islit(ins[1]):
-				if ins[1] not in inter:
-					inter[ins[1]] = set()
-				live.add(ins[1])
-		coll[i] = deepcopy(live)
-	return coll, inter
 
 def compileIR(n, ndict, choices):
 	def tmovl(x):
@@ -255,6 +193,14 @@ def compileIR(n, ndict, choices):
 			return "movl " + getl(x[1]) + ", %eax\npushl %eax"
 	def islit(item):
 		return isinstance(item, tuple) and item[0] == "lit"
+	def translit(e):
+		if isinstance(e,bool):
+			if e:
+				return "$5"
+			else:
+				return "$1"
+		else:
+			return "$" + str(e*4)
 	def getl(name):
 		#things that name could be...
 		#'varname'
@@ -265,9 +211,9 @@ def compileIR(n, ndict, choices):
 			return getlocation(choices[name])# + "/*" + str(name) + "*/"
 		else:
 			if name[0] == "reg":
-				return str(name[1])# + "/*" + str(name) + "*/"
+				return str(name[1]) # + "/*" + str(name) + "*/"
 			else:
-				return "$" + str(name[1])# + "/*" + str(name) + "*/"
+				return translit(name[1]) # + "/*" + str(name) + "*/"
 	tdict = {} # TODO: translation dictionary in separate file
 	tdict['movl'] = lambda x: tmovl(x)
 	tdict['addl'] = lambda x: "addl " + getl(x[1]) + ", " + getl(x[2])
