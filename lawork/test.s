@@ -20,4 +20,3 @@ subl $-4, %esp
 movl $0, %eax
 leave
 ret
-
