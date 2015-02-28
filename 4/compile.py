@@ -4,7 +4,9 @@ from compiler import parse
 from compiler.ast import *
 from lispify import lispexpr
 from copy import deepcopy
-import dsatur
+from tmp import *
+from pseudo import *
+#import dsatur
 import sys
 
 #sys.setrecursionlimit(2**30) # maybe needed for final submission?
@@ -12,6 +14,7 @@ import sys
 def concat(l): # when sum() doesn't work
 	return reduce(lambda a,b: a+b, l, [])
 
+# obsolete?
 def getnamesIR(n): # get full set of names used by program so that we can assign to different ones
 	if not isinstance(n, list) or not len(n):
 		return []
@@ -24,6 +27,11 @@ reg2col = {("reg", "%eax"): 0, ("reg", "%ebx"): 1, ("reg", "%ecx"):2, ("reg", "%
 col2reg = {}
 for i in reg2col:
 	col2reg[reg2col[i]] = i
+
+gentmpfunc = [lambda *x: 0]
+gentmp = genTmp = lambda *x: gentmpfunc[0]()
+def settmpfunc(f):
+	gentmpfunc[0] = f
 
 def getnames(n): # get full set of names used by program so that we can assign to different ones
 	if isinstance(n, list) or isinstance(n, tuple):
@@ -39,14 +47,6 @@ def getnames(n): # get full set of names used by program so that we can assign t
 	else:
 		return []
 
-def getGenTmp():
-	c = [-1]
-	def count():
-		c[0] += 1
-		return c[0]
-	return count
-genTmp = getGenTmp()
-
 # instead of dealing with Python AST nodes directly, translate expressions into this format
 def exprEval(n,loc):
 	if n[0] == 'const':
@@ -54,16 +54,19 @@ def exprEval(n,loc):
 	#elif n[0] == '+':
 	#	t1 = genTmp()
 	#	t2 = genTmp()
-	#	return exprEval(n[1],t1) + exprEval(n[2],t2) + [['+',loc,t2,t1]]
+	#	return exprEval(n[1],t1) + exprEval(n[2],t2) + [['+',loc,t1,t2]]
 	elif n[0] == '-':
 		t1 = genTmp()
 		return exprEval(n[1],t1) + [['-',loc,t1]]
 	elif n[0] == 'name':
 		return [['=name',loc,n[1]]]
-	elif n[0] == 'apply':
+	elif n[0] == 'call' or n[0] == 'apply':
 		l = len(n)-2
 		tmps = map(genTmp,range(l))
-		return concat(map(exprEval,n[2:],tmps)) + [['call',n[1]] + tmps]
+		call = ['call',loc,n[1][1]]
+		for i in tmps:
+			call.append(i)
+		return concat(map(exprEval,n[2:],tmps)) + [call]
 	elif n[0] == 'list':
 		l = len(n)-1
 		head = [['call',loc,'make_list',('lit',l)]]
@@ -80,38 +83,38 @@ def exprEval(n,loc):
 		def makesetd(key,val):
 			tmpkey = genTmp()
 			tmpval = genTmp()
-			return exprEval(key,tmpkey) + exprEval(val,tmpval) +
-				[['call',genTmp(),'set_subscript',loc,tmpkey,tmpval]]
+			return (exprEval(key,tmpkey) + exprEval(val,tmpval)
+				+ [['call',genTmp(),'set_subscript',loc,tmpkey,tmpval]])
 		return head + map(makesetl,keys,vals)
 	elif n[0] == 'let':
 		return exprEval(n[2],n[1]) + exprEval(n[3],loc)
 	elif n[0] == 'ifexp':
-		iftmp1 = genTmp()
-		return exprEval(n[1],iftmp1) + [['if',iftmp1,exprEval(n[2],loc),exprEval(n[3],loc)]]
+		iftmp = genTmp()
+		return exprEval(n[1],iftmp) + [['if',iftmp,exprEval(n[2],loc),exprEval(n[3],loc)]]
 	elif n[0] == 'is' or n[0] == '==' or n[0] == '!=' or n[0] == '+':
 		tmp1 = genTmp()
 		tmp2 = genTmp()
-		return exprEval(n[1],tmp1) + exprEval(n[2],tmp2) + [n[0],loc,tmp1,tmp2]
+		return exprEval(n[1],tmp1) + exprEval(n[2],tmp2) + [[n[0],loc,tmp1,tmp2]]
+
+#def discardEval(n):
+#	if not isinstance(n, list):
+#		return []
 
 def discardEval(n):
 	if not isinstance(n, list):
 		return []
-
-def discardEval(n):
-	if not isinstance(n, list):
-		return []
-	elif n[0] == 'apply':
+	elif n[0] == 'apply' or n[0] == 'call':
 		return exprEval(n,genTmp())
 	else:
 		return concat(map(discardEval,n))
 
 def printEval(n):
 	t1 = genTmp()
-	return exprEval(n[1],t1) + [['print',t1]]
+	return exprEval(n[1],t1) + [['call',genTmp(),'print_any',t1]]
 
 def assEval(n):
 	t1 = genTmp()
-	return exprEval(n[2],t1) + [['name=',n[1][1],t1]]
+	return exprEval(n[2],t1) + [['name=',n[1],t1]]
 
 def stmtEval(n):
 	def subStmtEval(n):
@@ -120,6 +123,7 @@ def stmtEval(n):
 		elif n[0] == '=':
 			return assEval(n)
 		else: #expression
+			d = discardEval(n)
 			return discardEval(n)
 	assert n[0] == 'begin', "Non-begin in stmtEval"
 	return concat(map(subStmtEval,n[1]))
@@ -130,15 +134,30 @@ def progEval(n):
 
 def HL2LLIR(n):
 	tdict = {} # TODO: translation dictionary in separate file
-	tdict['+'] = tdict['=='] = tdict['!='] = tdict['is'] = lambda x: x
+	tdict['+'] = tdict['=='] = tdict['!='] = tdict['is'] = tdict['call'] = lambda x: [x]
 	tdict['=lit'] = tdict['=name'] = tdict['name='] = lambda x: [["movl", x[2], x[1]]]
 	tdict['-'] = lambda x: [["movl", x[2], x[1]], ["negl", x[1]]]
 	tdict['print'] = lambda x: [["pushl", x[1]], ["call", "print_int_nl"], ["subl", ("lit", -4), ("reg", "%esp")]]
-	tdict['call'] = lambda x: [["call", "input"], ["movl", ("reg", "%eax"), x[1]]]
+	# tdict['call'] = lambda x: [["call", "input"], ["movl", ("reg", "%eax"), x[1]]]
+	tdict['if'] = lambda x: [['if',x[1],x[2],HL2LLIR(x[3]),HL2LLIR(x[4])]]
 	return concat(map(lambda x: tdict[x[0]](x),n))
 
+def llirNames(ir):
+	tdict = {}
+	names = set()
+	def generic(n):
+		return set(filter(lambda x: isinstance(x,str),n[1:]))
+	def default(n):
+		if n[0] in tdict:
+			return tdict[n[0]](n)
+		else:
+			return generic(n)
+	tdict['call'] = lambda n: set(filter(lambda x: isinstance(x,str),n[3:]+[n[1]]))
+	return map(default,ir)
+
 def spillIR(ir,choices):
-	spills = {}
+	sdict = {}
+	spills = set()
 	spilled = [False]
 	def tmpgen():
 		return '%eax'
@@ -146,23 +165,44 @@ def spillIR(ir,choices):
 		t = tmpgen()
 		spills.add(t)
 		spilled[0] = False # TODO: make True
+		return t
 	def unispill(i):
 		if i[1] > 5:
 			t = spillgen()
 			return [['movl',i[1],t],[i[0],t],['movl',t,i[1]]]
+		else:
+			return [i]
 	#def binspill_left(i):
 	#	if i[1] > 5:
 	#		t = spillgen()
 	#		return [['movl',i[1],t],[i[0],t,i[2]],['movl',t,i[1]]]
 	def isspill(i):
-		if i[2] > 5:
-			if i[3] <= 5:
-				return isspill([i[0],i[1],i[3],i[2]])
-			else:
-				t = spillgen()
-				return [['movl',i[2],t],[i[0],i[1],t,i[3]]]
+		if i[2] > 5 and i[3] > 5:
+			t = spillgen()
+			return [['movl',i[2],t],[i[0],i[1],t,i[3]]]
+		else:
+			return [i]
+	def movspill(i):
+		if i[1] > 5 and i[2] > 5:
+			t = spillgen()
+			return [['movl',i[1],t],['movl',t,i[2]]]
+		else:
+			return [i]
+	def ifspill(i):
+		return [[i[0],i[1],i[2],spillIR(i[3],choices),spillIR(i[4],choices)]]
+	def lookup(i):
+		if i[0] in sdict:
+			return sdict[i[0]](i)
+		else:
+			return [i]
+	sdict['if'] = ifspill
+	sdict['movl'] = movspill
+	sdict['negl'] = unispill
+	sdict['is'] = isspill
+	newir = concat(map(lookup,ir))
+	return newir,spills,spilled
 
-def compileIR(n, ndict, choices):
+def compileIR(n, choices):
 	def tmovl(x):
 		a = getl(x[1])
 		b = getl(x[2])
@@ -187,12 +227,9 @@ def compileIR(n, ndict, choices):
 		else:
 			return "$" + str(e*4)
 	def getl(name):
-		#things that name could be...
-		#'varname'
-		#tmpvarid
-		#reg tuple
-		#lit tuple
 		if not isinstance(name, tuple):
+			if name not in choices:
+				return name
 			return getlocation(choices[name])# + "/*" + str(name) + "*/"
 		else:
 			if name[0] == "reg":
@@ -200,13 +237,14 @@ def compileIR(n, ndict, choices):
 			else:
 				return translit(name[1]) # + "/*" + str(name) + "*/"
 	def call(n):
-		setup = ''
-		for i in range(len(n)-1,1,-1):
+		setup = 'pushl %ebp\n'
+		for i in range(len(n)-1,2,-1):
 			l = getl(n[i])
-			setup += 'movl ' + l + ', %eax\npushl %eax\n'
-		cleanup = 'subl $-' + str(4*(len(n)-2)) + ', %esp'
-		return setup + 'call ' + n[1] + '\n' + cleanup
+			setup += 'movl ' + l + ', %ebp\npushl %ebp\n'
+		cleanup = 'subl $-' + str(4*(len(n)-3)) + ', %esp\npopl %ebp\nmovl %eax, ' + getl(n[1])
+		return setup + 'call ' + n[2] + '\n' + cleanup
 	def simple(n): # generic function
+		s = []
 		for i in n[1:]:
 			s.append(getl(i))
 		return n[0] + ' ' + ','.join(s)
@@ -215,6 +253,11 @@ def compileIR(n, ndict, choices):
 	tdict['movl'] = tmovl
 	tdict['pushl'] = tpushl
 	tdict['call'] = call
+
+	tdict['is'] = genwrap(isgen,gentmp,getl)
+	tdict['+'] = genwrap(addgen,gentmp,getl)
+	tdict['=='] = genwrap(eqgen,gentmp,getl)
+	tdict['if'] = lambda x: ifgen(gentmp,x[1],compileIR(x[2]),compileIR(x[3]))
 	return "\n".join(filter(lambda x: len(x), map(lambda x: tdict[x[0]](x),n)))
 
 simpleHead = '''.global main
@@ -225,6 +268,8 @@ movl %esp, %ebp'''
 def getlocation(color):
 	if(color in col2reg):
 		return col2reg[color][1]
+	elif isinstance(color,str):
+		return color
 	else:
 		return str(4 * (color - 5)) + "(%esp)"
 
@@ -232,50 +277,32 @@ def compile(n):
 	def genHeader(stacksize):
 		stackMake = "subl $" + str(4*stacksize) + ", %esp"
 		return simpleHead + "\n" + stackMake
-	def genDict(names,tmpsize):
-		ret={}
-		spot = 0
-		#spot = tmpsize+1
-		while spot <= tmpsize:
-			ret[spot] = str(spot*4)+"(%esp)"
-			spot = spot + 1
-		for i in names:
-			ret[i] = str(spot*4)+"(%esp)"
-			spot = spot + 1
-		return ret
 	ast = parse(n)
-	irhl = lispexpr(ast)
-	names = getnames(ast)
-	ndict = {}
-	for n in names:
-		ndict[n] = genTmp()
-	irasm = progEval(irhl)
-	llir = HL2LLIR(irasm)
-	coll, inter = liveness(llir)
-	newspill = set([])
-	choices = dsatur.dsatur(inter, reg2col, newspill)
-	llir, uspill, nospill = spillIR(llir, choices)
-	#print("CODE")
-	#for c in llir:
-	#	print(c)
-	while(not nospill):
-		coll, inter = liveness(llir)
-		newspill = newspill | uspill
-	if 56 in inter:
-		for i in coll:
-			print i
-		for i in llir:
-			print i
-		print inter
-		print inter[56]
-		choices = dsatur.dsatur(inter, dsatur.mergedict(reg2col, dsatur.getspill(choices)), newspill)
-		llir, uspill, nospill = spillIR(llir, choices)
+	lisp = lispexpr(ast)
+	names = getStrings(lisp)
+
+	prefix = getPrefix(names)
+	settmpfunc(getGenTmp(prefix))
+	irhl = progEval(lisp)
 	
-	#stacksize = genTmp()
-	stacksize = dsatur.maxspill(choices)+4
+	llir = HL2LLIR(irhl)
+	#irnames = llirNames(llir)
+	irnames = getStrings(llir)
+
+	choices = {}
+	spot = 6
+	for n in irnames:
+		choices[n] = spot
+		spot += 1
+	for i in ['%eax']:
+		choices[i] = i
+	stacksize = spot+1
+	
+	llir,spills,spilled = spillIR(llir,choices)
+
 	head = genHeader(stacksize)
 	foot = "movl $0, %eax\nleave\nret\n"
-	return head + "\n" + compileIR(llir,ndict,choices) + "\n" + foot
+	return head + "\n" + compileIR(llir,choices) + "\n" + foot
 
 def le(n):
 	return compile(n)

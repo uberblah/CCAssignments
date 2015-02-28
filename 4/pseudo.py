@@ -38,7 +38,8 @@ def prefixrep(reps,s):
 			i += 1
 	return res
 
-def ifgen(gentmp,c,t,e):
+def ifgen(gentmp,getl,c,t,e):
+	c = getl(c)
 	reps = {'<true>':'$5','<false>':'$1','<cond>':c,'<t>':t,'<e>':e,
 			'<tlab>':gentmp(),'<elab>':gentmp(),'<plab>':gentmp()}
 	if c == '%eax':
@@ -46,9 +47,12 @@ def ifgen(gentmp,c,t,e):
 	else:
 		reps['<reg>'] = '%eax'
 	return prefixrep(reps,ifinstr)
-gentmp=gentmpCounter()
+gentmp=getGenTmp('__label__')
 
-def eqgen(gentmp,c,a,b):
+def eqgen(gentmp,getl,c,a,b):
+	c = getl(c)
+	a = getl(a)
+	b = getl(b)
 	reps = {'<true>':'$5','<false>':'$1','<c>':c,'<a>':a,'<b>':b,
 			'<tlab>':gentmp(),'<elab>':gentmp(),'<plab>':gentmp()}
 	s = {'%eax','%ecx','%edx'}
@@ -56,18 +60,46 @@ def eqgen(gentmp,c,a,b):
 	reps['<reg>'] = s.pop()
 	return prefixrep(reps,eqinstr)
 
+def isgen(gentmp,getl,c,a,b):
+	c = getl(c)
+	a = getl(a)
+	b = getl(b)
+	reps = {'<true>':'$5','<false>':'$1','<c>':c,'<a>':a,'<b>':b,
+			'<elab>':gentmp(),'<plab>':gentmp()}
+	return prefixrep(reps,isinstr)
+
+def addgen(gentmp,getl,c,a,b):
+	c = getl(c)
+	a = getl(a)
+	b = getl(b)
+	reps = {'<true>':'$5','<false>':'$1','<c>':getl(c),'<a>':getl(a),'<b>':getl(b),
+			'<clab>':gentmp(),'<plab>':gentmp()}
+	s = {'%eax','%ecx','%edx'}
+	s -= {a,b}
+	reps['<reg>'] = s.pop()
+	return prefixrep(reps,addinstr)
+
+def genwrap(f,gentmp,getl):
+	'''
+	def a(x):
+		print x
+		return apply(f,[gentmp]+x[1:])
+	return a
+	'''
+	return lambda x: apply(f,[gentmp,getl]+x[1:])
+
 ifinstr='''
-cmpul $3,<cond>
-jg <elab> /* 3 > c -> !c and !big(c) -> c */
+cmpl $3,<cond>
+ja <elab> /* 3 > c -> !c and !big(c) -> c */
 movl <cond>, <reg> /* r = c */
 andl $3,<cond> /* c = type(r) */
-cmpul $3,<cond>
+cmpl $3,<cond>
 jne <tlab> /* !big(r) <-> type(r) != 3 -> r */
 pushl <reg> /* big(r) */
 call is_true
 subl $-4, %esp
-cmpul $3, %eax
-jl <elab> /* small(%eax) -> %eax > 3 -> %eax */
+cmpl $3, %eax
+jb <elab> /* small(%eax) -> %eax > 3 -> %eax */
 <tlab>:
 	<t>
 	jmp <plab>
@@ -82,12 +114,12 @@ eqinstr = '''
 movl <a>, <reg>
 orl <b>, <reg>
 andl $3, <reg>
-cmpul $3, <reg>
+cmpl $3, <reg>
 je <clab>
 movl <a>, <reg>
 xorl <b>, <reg>
-cmpul $3, <reg>
-jg <elab>
+cmpl $3, <reg>
+ja <elab>
 <tlab>:
 	movl <true>,<c>
 	jmp <plab>
@@ -101,7 +133,7 @@ jg <elab>
 	pushl <reg>
 	call equal_pyobj
 	subl $-8, %esp
-	cmpul $0, %eax
+	cmpl $0, %eax
 	jne <elab>
 	jmp <tlab>
 <plab>:
@@ -111,7 +143,7 @@ addinstr = '''
 movl <a>,<reg>
 orl <b>,<reg>
 andl $3,<reg>
-cmpul $3,<reg>
+cmpl $3,<reg>
 je <clab>
 movl <a>,<reg>
 addl <b>,<reg>
@@ -130,7 +162,7 @@ jmp <plab>
 '''
 
 isinstr = '''
-cmpul <a>,<b>
+cmpl <a>,<b>
 jne <elab>
 movl <true>,<c>
 jmp <plab>

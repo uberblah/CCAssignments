@@ -17,7 +17,7 @@ def getASTNames(t):
 def lispexpr(n):
 	names = getStrings(n)
 	prefix = getPrefix(names,prefix = '__CCLet__')
-	genTmp = genTmpCount(prefix)
+	genTmp = getGenTmp(prefix)
 	def lispexpr_rec(n):
 		le=lispexpr_rec
 		if isinstance(n,list) or isinstance(n,tuple):
@@ -31,7 +31,7 @@ def lispexpr(n):
 		elif isinstance(n, Assign):
 			return ['=',le(n.nodes[0]),le(n.expr)]
 		elif isinstance(n, AssName):
-			return ['name',n.name]
+			return n.name #['name',n.name]
 		elif isinstance(n, Discard):
 			return le(n.expr)
 		elif isinstance(n, Const):
@@ -41,6 +41,8 @@ def lispexpr(n):
 				return ['const',True]
 			elif n.name == 'False':
 				return ['const',False]
+			elif n.name == 'input':
+				return ['name','input_int']
 			return ['name',n.name]
 		elif isinstance(n, Add):
 			return ['+',le(n.left),le(n.right)]
@@ -49,7 +51,7 @@ def lispexpr(n):
 		elif isinstance(n, IfExp):
 			return ['ifexp'] + map(le,n.getChildren())
 		elif isinstance(n, CallFunc):
-			return ['apply',le(n.node),le(n.args)]
+			return ['call',le(n.node)] + le(n.args)
 		elif isinstance(n, Or):
 			t = genTmp()
 			return ['let',t,le(n.left),['ifexp',t,t,le(n.right)]]
@@ -59,7 +61,7 @@ def lispexpr(n):
 		elif isinstance(n, Not):
 			return ['ifexp',le(n.expr),['const',False],['const',True]]
 		elif isinstance(n, Compare):
-			if n.ops[0][0] == '!='
+			if n.ops[0][0] == '!=':
 				return le(Not(Compare(['==',n.ops[0][1]],n.expr)))
 			return [n.ops[0][0],le(n.expr),le(n.ops[0][1])]
 		elif isinstance(n, List):

@@ -17,15 +17,19 @@ def getPrefix(names,prefix = '__CC__'):
 		n += 1
 	return prefix
 
-def genTmpCount(prefix=''):
+def getGenTmp(prefix=''):
 	a = [0]
+	def countpre():
+		a[0] += 1
+		return str(prefix)+str(a[0])
 	def count():
 		a[0] += 1
-		if prefix:
-			return str(prefix)+str(a[0])
-		return a[0]
-	return count
-genTmp = genTmpCount()
+		return str(a[0])
+	if prefix:
+		return countpre
+	else:
+		return count
+#genTmp = getGenTmp('')
 
 def getStrings(n): # as long as the structure isn't circular
 	s = set()
