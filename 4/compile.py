@@ -160,7 +160,7 @@ def spillIR(ir,choices):
 	spills = set()
 	spilled = [False]
 	def tmpgen():
-		return '%eax'
+		return ('reg','%eax')
 	def spillgen():
 		t = tmpgen()
 		spills.add(t)
@@ -232,17 +232,24 @@ def compileIR(n, choices):
 				return name
 			return getlocation(choices[name])# + "/*" + str(name) + "*/"
 		else:
-			if name[0] == "reg":
+			if name[0] == 'reg':
 				return str(name[1]) # + "/*" + str(name) + "*/"
 			else:
 				return translit(name[1]) # + "/*" + str(name) + "*/"
 	def call(n):
-		setup = 'pushl %ebp\n'
-		for i in range(len(n)-1,2,-1):
-			l = getl(n[i])
-			setup += 'movl ' + l + ', %ebp\npushl %ebp\n'
-		cleanup = 'subl $-' + str(4*(len(n)-3)) + ', %esp\npopl %ebp\nmovl %eax, ' + getl(n[1])
-		return setup + 'call ' + n[2] + '\n' + cleanup
+		setup = ''
+		for i in range(3,len(n)):
+			s = getl(n[i])
+			if s[0] == '%':
+				setup += 'movl ' + s + ', ' + str(4*(i-3)) + '(%esp)\n'
+		for i in range(3,len(n)):
+			s = getl(n[i])
+			if s[0] != '%':
+				setup += 'movl ' + s + ', %eax\nmovl %eax, ' + str(4*(i-3)) + '(%esp)\n'
+		if n[1] != '%eax':
+			return setup + 'call ' + n[2] + '\nmovl %eax, ' + getl(n[1])
+		else:
+			return setup + 'call ' + n[2]
 	def simple(n): # generic function
 		s = []
 		for i in n[1:]:
@@ -273,6 +280,15 @@ def getlocation(color):
 	else:
 		return str(4 * (color - 5)) + "(%esp)"
 
+def mincall(llir):
+	a = 2
+	for i in llir:
+		if i[0] == 'call':
+			a = max(a,len(i)-3)
+		elif i[0] == 'if':
+			a = max(a,mincall(i[2]),mincall(i[3]))
+	return a
+
 def compile(n):
 	def genHeader(stacksize):
 		stackMake = "subl $" + str(4*stacksize) + ", %esp"
@@ -289,13 +305,12 @@ def compile(n):
 	#irnames = llirNames(llir)
 	irnames = getStrings(llir)
 
-	choices = {}
-	spot = 6
+	choices = deepcopy(reg2col)
+	spot = 6 + mincall(llir)
+	# spot = 6
 	for n in irnames:
 		choices[n] = spot
 		spot += 1
-	for i in ['%eax']:
-		choices[i] = i
 	stacksize = spot+1
 	
 	llir,spills,spilled = spillIR(llir,choices)

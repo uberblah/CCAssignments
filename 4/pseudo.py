@@ -95,9 +95,8 @@ movl <cond>, <reg> /* r = c */
 andl $3,<cond> /* c = type(r) */
 cmpl $3,<cond>
 jne <tlab> /* !big(r) <-> type(r) != 3 -> r */
-pushl <reg> /* big(r) */
+movl <reg>, (%esp) /* big(r) */
 call is_true
-subl $-4, %esp
 cmpl $3, %eax
 jb <elab> /* small(%eax) -> %eax > 3 -> %eax */
 <tlab>:
@@ -128,11 +127,10 @@ ja <elab>
 	jmp <plab>
 <clab>:
 	movl <a>,<reg>
-	pushl <reg>
+	movl <reg>,(%esp)
 	movl <b>,<reg>
-	pushl <reg>
+	movl <reg>,4(%esp)
 	call equal_pyobj
-	subl $-8, %esp
 	cmpl $0, %eax
 	jne <elab>
 	jmp <tlab>
@@ -152,11 +150,11 @@ jmp <plab>
 <clab>:
 	movl <a>,<reg>
 	andl $0xFFFFFFFC,<reg>
-	pushl <reg>
+	movl <reg>,(%esp)
 	movl <b>,<reg>
 	andl $0xFFFFFFFC,<reg>
+	movl <reg>,4(%esp)
 	call add
-	subl $-8, %esp
 	movl %eax,<c>
 <plab>:
 '''
