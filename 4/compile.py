@@ -73,7 +73,7 @@ def exprEval(n,loc):
         locs = range(l)
         def makesetl(x,y):
             tmp = genTmp()
-            return exprEval(x,tmp) + [['call',genTmp(),'set_subscript',loc,y,tmp]]
+            return exprEval(x,tmp) + [['call',genTmp(),'set_subscript',loc,('lit',y),tmp]]
         return head + concat(map(makesetl,n[1:],locs))
     elif n[0] == 'dict':
         l = len(n)-1
@@ -129,6 +129,7 @@ def assEval(n):
 	tkey = genTmp()
 	tval = genTmp()
 	tloc = genTmp()
+	print tkey
 	return (exprEval(n[1][1],tdict) + exprEval(n[1][2],tkey)
 			+ exprEval(n[2],tval) + [['call',tloc,'set_subscript',tdict,tkey,tval]])
     t1 = genTmp()
@@ -267,6 +268,7 @@ def compileIR(n, choices):
                 return translit(name[1]) # + "/*" + str(name) + "*/"
     def call(n):
         setup = ''
+        #print n
         for i in range(3,len(n)):
             s = getl(n[i])
             if s[0] == '%':

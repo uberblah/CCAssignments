@@ -127,8 +127,10 @@ ja <elab>
 	jmp <plab>
 <clab>:
 	movl <a>,<reg>
+	andl $0xFFFFFFFC,<reg>
 	movl <reg>,(%esp)
 	movl <b>,<reg>
+	andl $0xFFFFFFFC,<reg>
 	movl <reg>,4(%esp)
 	call equal_pyobj
 	cmpl $0, %eax

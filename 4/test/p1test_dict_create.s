@@ -21,7 +21,7 @@ movl 56(%esp), %eax
 movl %eax, 8(%esp)
 call set_subscript
 movl %eax, 52(%esp)
-movl 20(%esp), %eax
+movl $20, %eax
 movl %eax, 36(%esp)
 call input_int
 movl %eax, 60(%esp)
