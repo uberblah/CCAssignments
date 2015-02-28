@@ -130,52 +130,37 @@ def progEval(n):
 
 def HL2LLIR(n):
 	tdict = {} # TODO: translation dictionary in separate file
-	tdict['=lit'] = lambda x: [["movl", x[2], x[1]]]
-	tdict['+'] = lambda x: [["movl", x[3], x[1]], ["addl", x[2], x[1]]]
+	tdict['+'] = tdict['=='] = tdict['!='] = tdict['is'] = lambda x: x
+	tdict['=lit'] = tdict['=name'] = tdict['name='] = lambda x: [["movl", x[2], x[1]]]
 	tdict['-'] = lambda x: [["movl", x[2], x[1]], ["negl", x[1]]]
-	tdict['=name'] = lambda x: [["movl", x[2], x[1]]]
 	tdict['print'] = lambda x: [["pushl", x[1]], ["call", "print_int_nl"], ["subl", ("lit", -4), ("reg", "%esp")]]
-	tdict['name='] = lambda x: [["movl", x[2], x[1]]]
 	tdict['call'] = lambda x: [["call", "input"], ["movl", ("reg", "%eax"), x[1]]]
 	return concat(map(lambda x: tdict[x[0]](x),n))
 
-#return set of unspillables
-#return dict of unspillable precolorings
-#return new ir with unspillable movls
-def spillIR(irin, choices):
-	nospill = True
-	def shouldSpill(ins):
-		if ins[0] == "negl":
-			if not isinstance(ins[1], tuple):
-				return ins[1] in choices and choices[ins[1]] > 5
-			return False
-		elif ins[0] == "movl" or ins[0] == "addl":
-			if not isinstance(ins[1], tuple) and not isinstance(ins[2], tuple):
-				return ins[1] in choices and ins[2] in choices and (choices[ins[1]] > 5 and choices[ins[2]] > 5)
-			return False
-		return False
-	ir = deepcopy(irin)
-	tset = set([])
-	#movl->movl to reg, movl to mem
-	#addl->movl to reg, addl to mem
-	#negl->movl to reg, negl reg, movl to mem
-	sdict = {}
-	tmp = 0
-	sdict['movl'] = lambda x: [["movl", x[1], tmp], ["movl", tmp, x[2]]]
-	sdict['addl'] = lambda x: [["movl", x[1], tmp], ["addl", tmp, x[2]]]
-	sdict['negl'] = lambda x: [["movl", x[1], tmp], ["negl", tmp], ["movl", tmp, x[1]]]
-	sdict['is'] = lambda x: [["movl", x[1], tmp], ['is', tmp, x[2], x[3]]]
-	for i in range(0, len(ir)):
-		ins = ir[i]
-		if shouldSpill(ins):
-			nospill = False
-			tmp = genTmp()
-			tset.add(tmp)
-			newins = sdict[ins[0]](ins)
-			ir.pop(i)
-			for newi in range(0, len(newins)):
-				ir.insert(i + newi, newins[newi])
-	return ir, tset, nospill
+def spillIR(ir,choices):
+	spills = {}
+	spilled = [False]
+	def tmpgen():
+		return '%eax'
+	def spillgen():
+		t = tmpgen()
+		spills.add(t)
+		spilled[0] = False # TODO: make True
+	def unispill(i):
+		if i[1] > 5:
+			t = spillgen()
+			return [['movl',i[1],t],[i[0],t],['movl',t,i[1]]]
+	#def binspill_left(i):
+	#	if i[1] > 5:
+	#		t = spillgen()
+	#		return [['movl',i[1],t],[i[0],t,i[2]],['movl',t,i[1]]]
+	def isspill(i):
+		if i[2] > 5:
+			if i[3] <= 5:
+				return isspill([i[0],i[1],i[3],i[2]])
+			else:
+				t = spillgen()
+				return [['movl',i[2],t],[i[0],i[1],t,i[3]]]
 
 def compileIR(n, ndict, choices):
 	def tmovl(x):
@@ -214,13 +199,22 @@ def compileIR(n, ndict, choices):
 				return str(name[1]) # + "/*" + str(name) + "*/"
 			else:
 				return translit(name[1]) # + "/*" + str(name) + "*/"
+	def call(n):
+		setup = ''
+		for i in range(len(n)-1,1,-1):
+			l = getl(n[i])
+			setup += 'movl ' + l + ', %eax\npushl %eax\n'
+		cleanup = 'subl $-' + str(4*(len(n)-2)) + ', %esp'
+		return setup + 'call ' + n[1] + '\n' + cleanup
+	def simple(n): # generic function
+		for i in n[1:]:
+			s.append(getl(i))
+		return n[0] + ' ' + ','.join(s)
 	tdict = {} # TODO: translation dictionary in separate file
-	tdict['movl'] = lambda x: tmovl(x)
-	tdict['addl'] = lambda x: "addl " + getl(x[1]) + ", " + getl(x[2])
-	tdict['negl'] = lambda x: "negl " + getl(x[1])
-	tdict['pushl'] = lambda x: tpushl(x)
-	tdict['call'] = lambda x: "call " + x[1]
-	tdict['subl'] = lambda x: "subl " + getl(x[1]) + ", " + getl(x[2])
+	tdict['addl'] = tdict['negl'] = tdict['subl'] = simple
+	tdict['movl'] = tmovl
+	tdict['pushl'] = tpushl
+	tdict['call'] = call
 	return "\n".join(filter(lambda x: len(x), map(lambda x: tdict[x[0]](x),n)))
 
 simpleHead = '''.global main
