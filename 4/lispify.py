@@ -69,7 +69,7 @@ def lispexpr(n):
 		elif isinstance(n, Dict):
 			return ['dict'] + map(le,n.items)
 		elif isinstance(n, Subscript):
-			return ['sub',le(n.expr),le(n.subs)]
+			return ['sub',le(n.expr),le(n.subs)[0]]
 		elif isinstance(n, If):
 			a=lambda x: [le(x)]
 			if n.else_:
