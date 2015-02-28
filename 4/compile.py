@@ -125,7 +125,12 @@ def assEval(n):
     if isinstance(n[1], list):
         if n[1][0] != 'sub':
             raise Exception
-        
+        tdict = genTmp()
+	tkey = genTmp()
+	tval = genTmp()
+	tloc = genTmp()
+	return (exprEval(n[1][1],tdict) + exprEval(n[1][2],tkey)
+			+ exprEval(n[2],tval) + [['call',tloc,'set_subscript',tdict,tkey,tval]])
     t1 = genTmp()
     return exprEval(n[2],t1) + [['name=',n[1],t1]]
 

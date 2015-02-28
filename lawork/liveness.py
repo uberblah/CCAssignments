@@ -23,9 +23,10 @@ ins2rwi =\
 {
 "movl": {"read": set([1]), "write": set([2]), "ident": set([(1, 2)])},
 "addl": {"read": set([1, 2]), "write": set([2]), "ident": set()},
-"subl": {"read": set([1, 2]), "write": set([2]), "ident": set()},
+"subl": {"read": set([1, 2]), "write": set([]), "ident": set()},
 "negl": {"read": set([1]), "write": set([1]), "ident": set()},
 "pushl": {"read": set([1]), "write": set([("reg", "%eax")]), "ident": set()},
+"popl": {"read": set([]), "write": set([("reg", "%ecx")]), "ident": set()},
 "call": {"read": set(), "write": set([("reg", "%eax"), ("reg", "%ecx"), ("reg", "%edx")]), "ident": set()}
 }
 

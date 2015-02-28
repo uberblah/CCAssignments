@@ -115,7 +115,7 @@ def HL2LLIR(n):
     tdict['+'] = lambda x: [["movl", x[3], x[1]], ["addl", x[2], x[1]]]
     tdict['-'] = lambda x: [["movl", x[2], x[1]], ["negl", x[1]]]
     tdict['=name'] = lambda x: [["movl", x[2], x[1]]]
-    tdict['print'] = lambda x: [["pushl", x[1]], ["call", "print_int_nl"], ["subl", ("lit", -4), ("reg", "%esp")]]
+    tdict['print'] = lambda x: [["pushl", x[1]], ["call", "print_int_nl"], ["popl", ("reg", "%ecx")]]
     tdict['name='] = lambda x: [["movl", x[2], x[1]]]
     tdict['call'] = lambda x: [["call", "input"], ["movl", ("reg", "%eax"), x[1]]]
     return concat(map(lambda x: tdict[x[0]](x),n))
@@ -125,17 +125,23 @@ def HL2LLIR(n):
 #return new ir with unspillable movls
 def spillIR(ir,choices):
 	sdict = {}
-	spills = set()
+	spillset = set()
 	spilled = [False]
 	#def tmpgen():
 	#	return 
+	def spills(n):
+		if isinstance(n, tuple):
+			return False
+		else:
+			return choices[n] > 5
 	def spillgen():
-		t = genTmp()
-		spills.add(t)
+		#t = genTmp()
+		t = ('reg','%eax')
+		spillset.add(t)
 		spilled[0] = True
 		return t
 	def unispill(i):
-		if i[1] > 5:
+		if spills(i[1]):
 			t = spillgen()
 			return [['movl',i[1],t],[i[0],t],['movl',t,i[1]]]
 		else:
@@ -145,21 +151,27 @@ def spillIR(ir,choices):
 	#		t = spillgen()
 	#		return [['movl',i[1],t],[i[0],t,i[2]],['movl',t,i[1]]]
 	def isspill(i):
-		if i[2] > 5 and i[3] > 5:
+		if spills(i[2]) and spills(i[3]):
 			t = spillgen()
 			return [['movl',i[2],t],[i[0],i[1],t,i[3]]]
 		else:
 			return [i]
 	def movspill(i):
-		if i[1] > 5 and i[2] > 5:
+		if i[1] == i[2]:
+			return []
+		elif spills(i[1]) and spills(i[2]):
 			t = spillgen()
+			#print i[1],i[2],t
 			return [['movl',i[1],t],['movl',t,i[2]]]
 		else:
 			return [i]
 	def addspill(i):
-		if i[1] > 5 and i[2] > 5:
+		if spills(i[1]) and spills(i[2]):
+			#print i[1],i[2],choices
 			t = spillgen()
 			return [['movl',i[1],t],['addl',t,i[2]]]
+		else:
+			return [i]
 	def ifspill(i):
 		return [[i[0],i[1],i[2],spillIR(i[3],choices),spillIR(i[4],choices)]]
 	def lookup(i):
@@ -171,10 +183,10 @@ def spillIR(ir,choices):
 	sdict['movl'] = movspill
 	sdict['negl'] = unispill
 	sdict['is'] = isspill
-	sdict['add'] = addspill
+	sdict['addl'] = addspill
 	newir = concat(map(lookup,ir))
-	print newir,spills
-	return newir,spills,spilled[0]
+	#print spills
+	return newir,spillset,spilled[0]
 
 '''
 def spillIR(irin, choices):
@@ -247,7 +259,8 @@ def compileIR(n, ndict, choices):
     tdict['negl'] = lambda x: "negl " + getl(x[1])
     tdict['pushl'] = lambda x: tpushl(x)
     tdict['call'] = lambda x: "call " + x[1]
-    tdict['subl'] = lambda x: "subl " + getl(x[1]) + ", " + getl(x[2])
+    # tdict['subl'] = lambda x: "subl " + getl(x[1]) + ", " + getl(x[2])
+    tdict['popl'] = lambda x: "popl " + getl(x[1])
     return "\n".join(filter(lambda x: len(x), map(lambda x: tdict[x[0]](x),n)))
 
 simpleHead = '''.global main
@@ -294,10 +307,15 @@ def compile(n):
     #for c in lives:
     #    print(c)
     newspill = set([])
+    precolor = reg2col
     choices = dsatur.dsatur(inter, reg2col, newspill)
     llir, uspill, didspill = spillIR(llir, choices)
     #print("HELLO, USPILL!")
     #print(uspill)
+    #print llir
+    #print uspill
+    #print didspill
+    #print choices
     while(didspill):
         rwis = llir2rwis(llir)
         lives = liveness_a(rwis)
@@ -309,10 +327,12 @@ def compile(n):
         #for c in inter:
         #    print(str(c) + "->" + str(inter[c]) + "\n")
         newspill = newspill | uspill
-        choices = dsatur.dsatur(inter, reg2col, newspill)
+	precolor = dsatur.mergedict(precolor, dsatur.getspill(choices))
+	#print precolor
+        choices = dsatur.dsatur(inter, precolor, newspill)
         llir, uspill, didspill = spillIR(llir, choices)
     #print llir, choices
-    print choices
+    #print choices
     stacksize = dsatur.maxspill(choices)+4
     head = genHeader(stacksize)
     foot = "movl $0, %eax\nleave\nret\n"

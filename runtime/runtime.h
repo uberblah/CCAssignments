@@ -116,6 +116,7 @@ pyobj input_int();
 big_pyobj* create_list(pyobj length);
 static pyobj make_list(pyobj length);
 big_pyobj* create_dict();
+static pyobj make_dict(pyobj length);
 pyobj set_subscript(pyobj c, pyobj key, pyobj val);
 pyobj get_subscript(pyobj c, pyobj key);
 

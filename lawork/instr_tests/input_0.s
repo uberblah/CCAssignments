@@ -4,11 +4,11 @@ pushl %ebp
 movl %esp, %ebp
 subl $16, %esp
 call input
-movl %eax/*('reg', '%eax')*/, %ecx/*1*/
-movl %ecx/*1*/, %eax
+movl %eax/*('reg', '%eax')*/, %ebx/*1*/
+movl %ebx/*1*/, %eax
 pushl %eax
 call print_int_nl
-subl $-4/*('lit', -4)*/, %esp/*('reg', '%esp')*/
+popl %ecx/*('reg', '%ecx')*/
 movl $0, %eax
 leave
 ret
