@@ -123,6 +123,59 @@ def HL2LLIR(n):
 #return set of unspillables
 #return dict of unspillable precolorings
 #return new ir with unspillable movls
+def spillIR(ir,choices):
+	sdict = {}
+	spills = set()
+	spilled = [False]
+	#def tmpgen():
+	#	return 
+	def spillgen():
+		t = genTmp()
+		spills.add(t)
+		spilled[0] = True
+		return t
+	def unispill(i):
+		if i[1] > 5:
+			t = spillgen()
+			return [['movl',i[1],t],[i[0],t],['movl',t,i[1]]]
+		else:
+			return [i]
+	#def binspill_left(i):
+	#	if i[1] > 5:
+	#		t = spillgen()
+	#		return [['movl',i[1],t],[i[0],t,i[2]],['movl',t,i[1]]]
+	def isspill(i):
+		if i[2] > 5 and i[3] > 5:
+			t = spillgen()
+			return [['movl',i[2],t],[i[0],i[1],t,i[3]]]
+		else:
+			return [i]
+	def movspill(i):
+		if i[1] > 5 and i[2] > 5:
+			t = spillgen()
+			return [['movl',i[1],t],['movl',t,i[2]]]
+		else:
+			return [i]
+	def addspill(i):
+		if i[1] > 5 and i[2] > 5:
+			t = spillgen()
+			return [['movl',i[1],t],['addl',t,i[2]]]
+	def ifspill(i):
+		return [[i[0],i[1],i[2],spillIR(i[3],choices),spillIR(i[4],choices)]]
+	def lookup(i):
+		if i[0] in sdict:
+			return sdict[i[0]](i)
+		else:
+			return [i]
+	sdict['if'] = ifspill
+	sdict['movl'] = movspill
+	sdict['negl'] = unispill
+	sdict['is'] = isspill
+	sdict['add'] = addspill
+	newir = concat(map(lookup,ir))
+	return newir,spills,spilled
+
+'''
 def spillIR(irin, choices):
     nospill = True
     def shouldSpill(ins):
@@ -156,6 +209,7 @@ def spillIR(irin, choices):
             for newi in range(0, len(newins)):
                 ir.insert(i + newi, newins[newi])
     return ir, tset, nospill
+'''
 
 """
 def liveness(llir):
