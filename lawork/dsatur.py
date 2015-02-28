@@ -31,9 +31,16 @@ def maxspill(choices):
 	else:
 		return s
 
+def dsatur_check(interf,colors):
+	for i in interf.keys():
+		for j in interf[i]:
+			if colors[i] == colors[j]:
+				print 'DSATUR CONFLICT:',i,j
+
 def dsatur(interf,pre,unspill):
 	#print("THIS IS A DICTIONARY!")
 	#print interf
+	interfcp = copy.deepcopy(interf)
 	checkGraph(interf)
 	#colors = copy.deepcopy(pre)
 	colors = pre
@@ -107,6 +114,7 @@ def dsatur(interf,pre,unspill):
 	for i in spill:
 		colors[i] = spillc
 		spillc += 1
+	dsatur_check(interfcp,colors)
 	return mergedict(pre,colors)
 
 #print kn
