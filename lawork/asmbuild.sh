@@ -1,3 +1,3 @@
 #!/bin/sh
 
-cc -m32 -lm ../runtime/*.o "$@"
+cc -g -m32 -lm ../runtime/*.o "$@"

@@ -25,26 +25,32 @@ ins2rwi =\
 "addl": {"read": set([1, 2]), "write": set([2]), "ident": set()},
 "subl": {"read": set([1, 2]), "write": set([2]), "ident": set()},
 "negl": {"read": set([1]), "write": set([1]), "ident": set()},
-"pushl": {"read": set([1]), "write": set(), "ident": set()},
-"call": {"read": set(), "write": set(), "ident": set()}
+"pushl": {"read": set([1]), "write": set([("reg", "%eax")]), "ident": set()},
+"call": {"read": set(), "write": set([("reg", "%eax"), ("reg", "%ecx"), ("reg", "%edx")]), "ident": set()}
 }
 
 def islit(x):
     return isinstance(x, tuple) and x[0] == "lit"
 
-#generate ReadWriteIdents
-#TESTED AND PROVEN!!!!!!!
 def llir2rwis(llir):
     rwis = []
     for ins in llir:
         info = ins2rwi[ins[0]]
         rwi = {"read": set(), "write": set(), "ident": set()}
         for v in info["read"]:
-            loc = ins[v]
+            loc = 0
+            if isinstance(v, tuple):
+                loc = v
+            else:
+                loc = ins[v]
             if not islit(loc):
                 rwi["read"].add(loc)
         for v in info["write"]:
-            loc = ins[v]
+            loc = 0
+            if isinstance(v, tuple):
+                loc = v
+            else:
+                loc = ins[v]
             if not islit(loc):
                 rwi["write"].add(loc)
         for v in info["ident"]:
@@ -112,6 +118,28 @@ def hasedge(graph, pair):
     mknode(graph, pair[1])
     return pair[1] in graph[pair[0]]
 
+def addid(graph, item):
+    if item not in graph:
+        graph[item] = set([item])
+def areid(graph, a, b):
+    addid(graph, a)
+    addid(graph, b)
+    return b in graph[a]
+def getid(graph, item):
+    addid(graph, item)
+    return graph[pair[0]]
+#set dst = src
+def setid(graph, src, dst):
+    addid(graph, src)
+    addid(graph, dst)
+    graph[dst].remove(dst)
+    graph[dst] = graph[src]
+    graph[src].add(dst)
+def unid(graph, value):
+    addid(graph, value)
+    graph[value].remove(value)
+    graph[value] = set([value])
+
 def sedge(pair): #sort an edge for comparability
     if isinstance(pair[0], tuple):
         if isinstance(pair[1], tuple):
@@ -122,40 +150,35 @@ def sedge(pair): #sort an edge for comparability
     return tuple(sorted(pair))
 
 def interference(lives, rwis):
-    ret_interf = dict()
-    interf = set() #all interferences, built up as we iterate
-    idents = set() #all current identities, changes as we iterate
-    for idx in range(len(lives)): #for each instruction (Lbefore)
-        idcand = set()
-        for pair in rwis[idx]["ident"]: #identities from the current instruction
-            idcand.add(sedge(pair)) #add to candidate identities
-        idcand -= interf #filter out edges already in interference set
-        idcand = set(filter(lambda x: x[0] != x[1], idcand)) #filter self-edges
-        live = lives[idx] #currently live variables
-        iset = set() #set of locally interfering variables
-        for r in rwis[idx]["read"]: #add all read-vars to local interference
-            iset.add(r)
-            mknode(ret_interf, r)
-        for w in rwis[idx]["write"]: #add all write-vars to local interference
-            iset.add(w)
-            mknode(ret_interf, w)
-        iint = set() #set of local interference edges
-        for a in iset:
-            for b in iset:
-                if b != a:
-                    iint.add(sedge((a, b)))
-        iint -= idcand
-        idents -= iint
-        interf |= iint
-        idents |= idcand
-    for edge in interf:
-        addedge(ret_interf, edge)
-    return ret_interf
+    interf = dict() # an undirected graph
+    idents = dict() # an identity map
+    for idx in range(len(lives)):
+        for pair in rwis[idx]["ident"]:
+            setid(idents, pair[0], pair[1])
+        for l in lives[idx]:
+            mknode(interf, l)
+        locl = set()
+        for r in rwis[idx]["read"]:
+            locl.add(r)
+        for w in rwis[idx]["write"]:
+            locl.add(w)
+            unid(idents, w)
+        for l in locl:
+            if not islit(l):
+                for l2 in locl:
+                    if not islit(l2) and l != l2 and not areid(idents, l, l2):
+                        addedge(interf, (l, l2))
+        for l in locl:
+            if not islit(l):
+                for l2 in lives[idx]:
+                    if not islit(l2) and l != l2 and not areid(idents, l, l2):
+                        addedge(interf, (l, l2))
+    return interf
 
 def printinter(inter):
     print("{")
     for node in inter:
-        print("    " + str(node) + str(inter[node]))
+        print("    " + str(node) + "=" + str(inter[node]))
     print("}")
 
 def testliveness():
@@ -171,5 +194,4 @@ def testliveness():
     inter = interference(liveness, rwis)
     print("INTERFERENCE")
     printinter(inter)
-
 
