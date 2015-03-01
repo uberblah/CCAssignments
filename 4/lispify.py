@@ -54,10 +54,10 @@ def lispexpr(n):
 			return ['call',le(n.node)] + le(n.args)
 		elif isinstance(n, Or):
 			t = genTmp()
-			return ['let',t,le(n.left),['ifexp',t,t,le(n.right)]]
+			return ['let',t,le(n.nodes[0]),['ifexp',['name',t],['name',t],le(n.nodes[1])]]
 		elif isinstance(n, And):
 			t = genTmp()
-			return ['let',t,le(n.nodes[0]),['ifexp',t,le(n.nodes[1]),t]]
+			return ['let',t,le(n.nodes[0]),['ifexp',['name',t],le(n.nodes[1]),['name',t]]]
 		elif isinstance(n, Not):
 			return ['ifexp',le(n.expr.expr),['const',False],['const',True]]
 		elif isinstance(n, Compare):
