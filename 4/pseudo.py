@@ -91,7 +91,7 @@ def genwrap(f,gentmp,getl):
 
 ifinstr='''
 cmpl $3,<cond>
-ja <elab> /* 3 > c -> !c and !big(c) -> c */
+jb <elab> /* 3 > c -> !c and !big(c) -> c */
 movl <cond>, <reg> /* r = c */
 andl $3,<cond> /* c = type(r) */
 cmpl $3,<cond>
@@ -128,10 +128,9 @@ ja <elab>
 	jmp <plab>
 <clab>:
 	movl <a>,<reg>
-	andl $0xFFFFFFFC,<reg>
 	movl <reg>,(%esp)
 	movl <b>,<reg>
-	andl $0xFFFFFFFC,<reg>
+	/*andl $0xFFFFFFFC,<reg>*/
 	movl <reg>,4(%esp)
 	call equal
 	cmpl $0, %eax
