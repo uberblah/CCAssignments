@@ -62,6 +62,7 @@ def lispexpr(n):
 			return ['ifexp',le(n.expr.expr),['const',False],['const',True]]
 		elif isinstance(n, Compare):
 			if n.ops[0][0] == '!=':
+				print le(Not(Compare(n.expr,['==',n.ops[0][1]])))
 				return le(Not(Compare(n.expr,['==',n.ops[0][1]])))
 			return [n.ops[0][0],le(n.expr),le(n.ops[0][1])]
 		elif isinstance(n, List):

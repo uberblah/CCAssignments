@@ -2,7 +2,7 @@
 main:
 pushl %ebp
 movl %esp, %ebp
-subl $36, %esp
+subl $16, %esp
 
 movl $0, %eax
 leave

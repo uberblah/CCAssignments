@@ -307,6 +307,24 @@ main:
 pushl %ebp
 movl %esp, %ebp'''
 
+functionFoot = '''
+make_list:
+	movl 4(%esp), %eax
+	pushl %eax
+	call create_list
+	popl %ebx
+	orl $3, %eax
+	ret
+
+make_dict:
+	movl 4(%esp), %eax
+	pushl %eax
+	call create_dict
+	popl %ebx
+	orl $3, %eax
+	ret
+'''
+
 def getlocation(color):
     if(color in col2reg):
         return col2reg[color][1]
@@ -323,6 +341,7 @@ def mincall(llir):
         elif i[0] == 'if':
             a = max(a,mincall(i[2]),mincall(i[3]))
     return a
+
 
 def compile(n):
     def genHeader(stacksize):
