@@ -106,6 +106,7 @@ __CC__41:
 	andl $0xFFFFFFFC,%eax
 	movl %eax,4(%esp)
 	call add
+	orl $0x3,%eax
 	movl %eax,268(%esp)
 __CC__42:
 
@@ -130,6 +131,7 @@ __CC__43:
 	andl $0xFFFFFFFC,%eax
 	movl %eax,4(%esp)
 	call add
+	orl $0x3,%eax
 	movl %eax,212(%esp)
 __CC__44:
 
@@ -154,6 +156,7 @@ __CC__45:
 	andl $0xFFFFFFFC,%eax
 	movl %eax,4(%esp)
 	call add
+	orl $0x3,%eax
 	movl %eax,188(%esp)
 __CC__46:
 
@@ -178,6 +181,7 @@ __CC__47:
 	andl $0xFFFFFFFC,%eax
 	movl %eax,4(%esp)
 	call add
+	orl $0x3,%eax
 	movl %eax,196(%esp)
 __CC__48:
 
@@ -202,6 +206,7 @@ __CC__49:
 	andl $0xFFFFFFFC,%eax
 	movl %eax,4(%esp)
 	call add
+	orl $0x3,%eax
 	movl %eax,72(%esp)
 __CC__50:
 
@@ -226,6 +231,7 @@ __CC__51:
 	andl $0xFFFFFFFC,%eax
 	movl %eax,4(%esp)
 	call add
+	orl $0x3,%eax
 	movl %eax,64(%esp)
 __CC__52:
 
@@ -250,6 +256,7 @@ __CC__53:
 	andl $0xFFFFFFFC,%eax
 	movl %eax,4(%esp)
 	call add
+	orl $0x3,%eax
 	movl %eax,56(%esp)
 __CC__54:
 
@@ -274,6 +281,7 @@ __CC__55:
 	andl $0xFFFFFFFC,%eax
 	movl %eax,4(%esp)
 	call add
+	orl $0x3,%eax
 	movl %eax,48(%esp)
 __CC__56:
 
@@ -298,6 +306,7 @@ __CC__57:
 	andl $0xFFFFFFFC,%eax
 	movl %eax,4(%esp)
 	call add
+	orl $0x3,%eax
 	movl %eax,44(%esp)
 __CC__58:
 
@@ -308,3 +317,16 @@ movl %eax, 80(%esp)
 movl $0, %eax
 leave
 ret
+
+make_list:
+	movl 4(%esp), %eax
+	pushl %eax
+	call create_list
+	popl %ebx
+	orl $3, %eax
+	ret
+
+make_dict:
+	call create_dict
+	orl $3, %eax
+	ret

@@ -53,17 +53,24 @@ def lispexpr(n):
 		elif isinstance(n, CallFunc):
 			return ['call',le(n.node)] + le(n.args)
 		elif isinstance(n, Or):
+			#print n,'@or'
 			t = genTmp()
 			return ['let',t,le(n.nodes[0]),['ifexp',['name',t],['name',t],le(n.nodes[1])]]
 		elif isinstance(n, And):
+			#print n,'@and'
 			t = genTmp()
 			return ['let',t,le(n.nodes[0]),['ifexp',['name',t],le(n.nodes[1]),['name',t]]]
 		elif isinstance(n, Not):
-			return ['ifexp',le(n.expr.expr),['const',False],['const',True]]
+			#print n,'@not'
+			return ['ifexp',le(n.expr),['const',False],['const',True]]
 		elif isinstance(n, Compare):
 			if n.ops[0][0] == '!=':
-				print le(Not(Compare(n.expr,['==',n.ops[0][1]])))
-				return le(Not(Compare(n.expr,['==',n.ops[0][1]])))
+				#a = Compare(n.expr,[('==',n.ops[0][1])])
+				#print n,n.expr,n.ops,'@compare'
+				#print a,a.expr,a.ops
+				#print le(Not(Compare(n.expr,['==',n.ops[0][1]])))
+				return le(Not(Compare(n.expr,[('==',n.ops[0][1])])))
+			#return [n.ops[0][0],le(n.expr.expr),le(n.ops[0][1])]
 			return [n.ops[0][0],le(n.expr),le(n.ops[0][1])]
 		elif isinstance(n, List):
 			return ['list'] + map(le,n.nodes)

@@ -158,6 +158,7 @@ jmp <plab>
 	andl $0xFFFFFFFC,<reg>
 	movl <reg>,4(%esp)
 	call add
+	orl $0x3,<reg>
 	movl %eax,<c>
 <plab>:
 '''

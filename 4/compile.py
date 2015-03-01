@@ -92,18 +92,18 @@ def exprEval(n,loc):
         return (exprEval(n[1], tmpstruct) + exprEval(n[2], tmpsub)
                 + [['call', loc, 'get_subscript', tmpstruct, tmpsub]])
     elif n[0] == 'let':
-	#print n
+	#print n,'@let'
         return exprEval(n[2],n[1]) + exprEval(n[3],loc)
     elif n[0] == 'ifexp':
         iftmp = genTmp()
-	#print n
+	#print n,'@if'
         return exprEval(n[1],iftmp) + [['if',iftmp,exprEval(n[2],loc),exprEval(n[3],loc)]]
     elif n[0] == 'is' or n[0] == '==' or n[0] == '!=' or n[0] == '+':
         tmp1 = genTmp()
         tmp2 = genTmp()
         return exprEval(n[1],tmp1) + exprEval(n[2],tmp2) + [[n[0],loc,tmp1,tmp2]]
     else:
-        print n
+        #print n
         raise Exception
 
 #def discardEval(n):
@@ -317,10 +317,7 @@ make_list:
 	ret
 
 make_dict:
-	movl 4(%esp), %eax
-	pushl %eax
 	call create_dict
-	popl %ebx
 	orl $3, %eax
 	ret
 '''
@@ -373,7 +370,7 @@ def compile(n):
     foot = "movl $0, %eax\nleave\nret\n"
     #for l in llir:
     #    print l
-    return head + "\n" + compileIR(llir,choices) + "\n" + foot
+    return head + "\n" + compileIR(llir,choices) + "\n" + foot + functionFoot
 
 def le(n):
     return compile(n)

@@ -30,6 +30,7 @@ __CC__7:
 	andl $0xFFFFFFFC,%eax
 	movl %eax,4(%esp)
 	call add
+	orl $0x3,%eax
 	movl %eax,56(%esp)
 __CC__8:
 
@@ -45,3 +46,16 @@ movl %eax, 48(%esp)
 movl $0, %eax
 leave
 ret
+
+make_list:
+	movl 4(%esp), %eax
+	pushl %eax
+	call create_list
+	popl %ebx
+	orl $3, %eax
+	ret
+
+make_dict:
+	call create_dict
+	orl $3, %eax
+	ret
