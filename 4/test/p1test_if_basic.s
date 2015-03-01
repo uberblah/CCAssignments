@@ -7,7 +7,7 @@ call input_int
 movl %eax, 56(%esp)
 
 cmpl $3,56(%esp)
-ja __CC__8 /* 3 > c -> !c and !big(c) -> c */
+jb __CC__8 /* 3 > c -> !c and !big(c) -> c */
 movl 56(%esp), %eax /* r = c */
 andl $3,56(%esp) /* c = type(r) */
 cmpl $3,56(%esp)
@@ -33,7 +33,7 @@ call input_int
 movl %eax, 36(%esp)
 
 cmpl $3,36(%esp)
-ja __CC__11 /* 3 > c -> !c and !big(c) -> c */
+jb __CC__11 /* 3 > c -> !c and !big(c) -> c */
 movl 36(%esp), %eax /* r = c */
 andl $3,36(%esp) /* c = type(r) */
 cmpl $3,36(%esp)
