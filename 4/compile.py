@@ -101,7 +101,7 @@ def exprEval(n,loc):
         tmp2 = genTmp()
         return exprEval(n[1],tmp1) + exprEval(n[2],tmp2) + [[n[0],loc,tmp1,tmp2]]
     else:
-        print n
+        #print n
         raise Exception
 
 #def discardEval(n):
@@ -129,7 +129,7 @@ def assEval(n):
 	tkey = genTmp()
 	tval = genTmp()
 	tloc = genTmp()
-	print tkey
+	#print tkey
 	return (exprEval(n[1][1],tdict) + exprEval(n[1][2],tkey)
 			+ exprEval(n[2],tval) + [['call',tloc,'set_subscript',tdict,tkey,tval]])
     t1 = genTmp()
@@ -152,9 +152,9 @@ def progEval(n):
     return stmtEval(n[1])
 
 def printwrap(f):
-    def nf(x):
+    def nf(*x):
         #print x
-        return f(x)
+        return apply(f,x)
     return nf
 
 def HL2LLIR(n):
@@ -164,8 +164,9 @@ def HL2LLIR(n):
     tdict['-'] = lambda x: [["movl", x[2], x[1]], ["negl", x[1]]]
     tdict['print'] = lambda x: [["pushl", x[1]], ["call", "print_int_nl"], ["subl", ("lit", -4), ("reg", "%esp")]]
     # tdict['call'] = lambda x: [["call", "input"], ["movl", ("reg", "%eax"), x[1]]]
-    tdict['if'] = lambda x: [['if',x[1],x[2],HL2LLIR(x[3]),HL2LLIR(x[4])]]
-    return concat(map(printwrap(lambda x: tdict[x[0]](x)),n))
+    tdict['if'] = lambda x: [['if',x[1],HL2LLIR(x[2]),HL2LLIR(x[3])]]
+    #return concat(map(printwrap(lambda x: tdict[x[0]](x)),n))
+    return concat(map(lambda x: tdict[x[0]](x),n))
 
 def llirNames(ir):
     tdict = {}
@@ -214,7 +215,7 @@ def spillIR(ir,choices):
         else:
             return [i]
     def ifspill(i):
-        return [[i[0],i[1],i[2],spillIR(i[3],choices),spillIR(i[4],choices)]]
+        return [[i[0],i[1],spillIR(i[2],choices),spillIR(i[3],choices)]]
     def lookup(i):
         if i[0] in sdict:
             return sdict[i[0]](i)
@@ -295,7 +296,8 @@ def compileIR(n, choices):
     tdict['is'] = genwrap(isgen,gentmp,getl)
     tdict['+'] = genwrap(addgen,gentmp,getl)
     tdict['=='] = genwrap(eqgen,gentmp,getl)
-    tdict['if'] = lambda x: ifgen(gentmp,x[1],compileIR(x[2]),compileIR(x[3]))
+    tdict['if'] = lambda x: ifgen(gentmp,getl,x[1],printwrap(compileIR)(x[2][0],choices),compileIR(x[3][0],choices))
+    #print n
     return "\n".join(filter(lambda x: len(x), map(lambda x: tdict[x[0]](x),n)))
 
 simpleHead = '''.global main

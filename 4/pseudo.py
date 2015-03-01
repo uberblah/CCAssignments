@@ -8,7 +8,8 @@
 from tmp import *
 from functools import partial
 
-reps = {'<true>':'$5','<false>':'$1'}
+#reps = {'<true>':'$5','<false>':'$1'}
+gentmp=getGenTmp('__label__')
 
 def prefixrep(reps,s):
 	def partition(f,l):
@@ -47,14 +48,14 @@ def ifgen(gentmp,getl,c,t,e):
 	else:
 		reps['<reg>'] = '%eax'
 	return prefixrep(reps,ifinstr)
-gentmp=getGenTmp('__label__')
 
 def eqgen(gentmp,getl,c,a,b):
 	c = getl(c)
 	a = getl(a)
 	b = getl(b)
 	reps = {'<true>':'$5','<false>':'$1','<c>':c,'<a>':a,'<b>':b,
-			'<tlab>':gentmp(),'<elab>':gentmp(),'<plab>':gentmp()}
+			'<tlab>':gentmp(),'<elab>':gentmp(),'<clab>':gentmp(),
+			'<plab>':gentmp()}
 	s = {'%eax','%ecx','%edx'}
 	s -= {a,b}
 	reps['<reg>'] = s.pop()
@@ -132,7 +133,7 @@ ja <elab>
 	movl <b>,<reg>
 	andl $0xFFFFFFFC,<reg>
 	movl <reg>,4(%esp)
-	call equal_pyobj
+	call equal
 	cmpl $0, %eax
 	jne <elab>
 	jmp <tlab>
