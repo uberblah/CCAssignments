@@ -25,13 +25,14 @@ __CC__248:
 	jmp __CC__250
 __CC__249:
 	movl 652(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 648(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__248
+	je __CC__248
 	jmp __CC__247
 __CC__250:
 
@@ -79,13 +80,14 @@ __CC__254:
 	jmp __CC__256
 __CC__255:
 	movl 132(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 144(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__254
+	je __CC__254
 	jmp __CC__253
 __CC__256:
 
@@ -98,8 +100,8 @@ cmpl $3,136(%esp)
 jne __CC__257 /* !big(r) <-> type(r) != 3 -> r */
 movl %eax, (%esp) /* big(r) */
 call is_true
-cmpl $3, %eax
-jb __CC__258 /* small(%eax) -> %eax > 3 -> %eax */
+cmpl $0, %eax
+je __CC__258 /* small(%eax) -> %eax > 3 -> %eax */
 __CC__257:
 	movl $1, %eax
 movl %eax, 608(%esp)
@@ -135,13 +137,14 @@ __CC__261:
 	jmp __CC__263
 __CC__262:
 	movl 148(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 160(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__261
+	je __CC__261
 	jmp __CC__260
 __CC__263:
 
@@ -189,13 +192,14 @@ __CC__267:
 	jmp __CC__269
 __CC__268:
 	movl 824(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 828(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__267
+	je __CC__267
 	jmp __CC__266
 __CC__269:
 
@@ -208,8 +212,8 @@ cmpl $3,820(%esp)
 jne __CC__270 /* !big(r) <-> type(r) != 3 -> r */
 movl %eax, (%esp) /* big(r) */
 call is_true
-cmpl $3, %eax
-jb __CC__271 /* small(%eax) -> %eax > 3 -> %eax */
+cmpl $0, %eax
+je __CC__271 /* small(%eax) -> %eax > 3 -> %eax */
 __CC__270:
 	movl $1, %eax
 movl %eax, 816(%esp)
@@ -245,13 +249,14 @@ __CC__274:
 	jmp __CC__276
 __CC__275:
 	movl 840(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 844(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__274
+	je __CC__274
 	jmp __CC__273
 __CC__276:
 
@@ -299,13 +304,14 @@ __CC__280:
 	jmp __CC__282
 __CC__281:
 	movl 960(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 980(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__280
+	je __CC__280
 	jmp __CC__279
 __CC__282:
 
@@ -318,8 +324,8 @@ cmpl $3,964(%esp)
 jne __CC__283 /* !big(r) <-> type(r) != 3 -> r */
 movl %eax, (%esp) /* big(r) */
 call is_true
-cmpl $3, %eax
-jb __CC__284 /* small(%eax) -> %eax > 3 -> %eax */
+cmpl $0, %eax
+je __CC__284 /* small(%eax) -> %eax > 3 -> %eax */
 __CC__283:
 	movl $1, %eax
 movl %eax, 968(%esp)
@@ -355,13 +361,14 @@ __CC__287:
 	jmp __CC__289
 __CC__288:
 	movl 508(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 496(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__287
+	je __CC__287
 	jmp __CC__286
 __CC__289:
 
@@ -409,13 +416,14 @@ __CC__293:
 	jmp __CC__295
 __CC__294:
 	movl 676(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 672(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__293
+	je __CC__293
 	jmp __CC__292
 __CC__295:
 
@@ -428,8 +436,8 @@ cmpl $3,532(%esp)
 jne __CC__296 /* !big(r) <-> type(r) != 3 -> r */
 movl %eax, (%esp) /* big(r) */
 call is_true
-cmpl $3, %eax
-jb __CC__297 /* small(%eax) -> %eax > 3 -> %eax */
+cmpl $0, %eax
+je __CC__297 /* small(%eax) -> %eax > 3 -> %eax */
 __CC__296:
 	movl $1, %eax
 movl %eax, 528(%esp)
@@ -465,13 +473,14 @@ __CC__300:
 	jmp __CC__302
 __CC__301:
 	movl 660(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 656(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__300
+	je __CC__300
 	jmp __CC__299
 __CC__302:
 
@@ -519,13 +528,14 @@ __CC__306:
 	jmp __CC__308
 __CC__307:
 	movl 284(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 256(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__306
+	je __CC__306
 	jmp __CC__305
 __CC__308:
 
@@ -538,8 +548,8 @@ cmpl $3,280(%esp)
 jne __CC__309 /* !big(r) <-> type(r) != 3 -> r */
 movl %eax, (%esp) /* big(r) */
 call is_true
-cmpl $3, %eax
-jb __CC__310 /* small(%eax) -> %eax > 3 -> %eax */
+cmpl $0, %eax
+je __CC__310 /* small(%eax) -> %eax > 3 -> %eax */
 __CC__309:
 	movl $1, %eax
 movl %eax, 276(%esp)
@@ -575,13 +585,14 @@ __CC__313:
 	jmp __CC__315
 __CC__314:
 	movl 268(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 248(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__313
+	je __CC__313
 	jmp __CC__312
 __CC__315:
 
@@ -629,13 +640,14 @@ __CC__319:
 	jmp __CC__321
 __CC__320:
 	movl 360(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 356(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__319
+	je __CC__319
 	jmp __CC__318
 __CC__321:
 
@@ -648,8 +660,8 @@ cmpl $3,364(%esp)
 jne __CC__322 /* !big(r) <-> type(r) != 3 -> r */
 movl %eax, (%esp) /* big(r) */
 call is_true
-cmpl $3, %eax
-jb __CC__323 /* small(%eax) -> %eax > 3 -> %eax */
+cmpl $0, %eax
+je __CC__323 /* small(%eax) -> %eax > 3 -> %eax */
 __CC__322:
 	movl $1, %eax
 movl %eax, 368(%esp)
@@ -685,13 +697,14 @@ __CC__326:
 	jmp __CC__328
 __CC__327:
 	movl 64(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 68(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__326
+	je __CC__326
 	jmp __CC__325
 __CC__328:
 
@@ -739,13 +752,14 @@ __CC__332:
 	jmp __CC__334
 __CC__333:
 	movl 36(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 180(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__332
+	je __CC__332
 	jmp __CC__331
 __CC__334:
 
@@ -758,8 +772,8 @@ cmpl $3,32(%esp)
 jne __CC__335 /* !big(r) <-> type(r) != 3 -> r */
 movl %eax, (%esp) /* big(r) */
 call is_true
-cmpl $3, %eax
-jb __CC__336 /* small(%eax) -> %eax > 3 -> %eax */
+cmpl $0, %eax
+je __CC__336 /* small(%eax) -> %eax > 3 -> %eax */
 __CC__335:
 	movl $1, %eax
 movl %eax, 44(%esp)
@@ -795,13 +809,14 @@ __CC__339:
 	jmp __CC__341
 __CC__340:
 	movl 184(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 172(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__339
+	je __CC__339
 	jmp __CC__338
 __CC__341:
 
@@ -849,13 +864,14 @@ __CC__345:
 	jmp __CC__347
 __CC__346:
 	movl 696(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 588(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__345
+	je __CC__345
 	jmp __CC__344
 __CC__347:
 
@@ -868,8 +884,8 @@ cmpl $3,988(%esp)
 jne __CC__348 /* !big(r) <-> type(r) != 3 -> r */
 movl %eax, (%esp) /* big(r) */
 call is_true
-cmpl $3, %eax
-jb __CC__349 /* small(%eax) -> %eax > 3 -> %eax */
+cmpl $0, %eax
+je __CC__349 /* small(%eax) -> %eax > 3 -> %eax */
 __CC__348:
 	movl $1, %eax
 movl %eax, 716(%esp)
@@ -1133,13 +1149,14 @@ __CC__352:
 	jmp __CC__354
 __CC__353:
 	movl 1032(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 1060(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__352
+	je __CC__352
 	jmp __CC__351
 __CC__354:
 
@@ -1187,13 +1204,14 @@ __CC__358:
 	jmp __CC__360
 __CC__359:
 	movl 312(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 316(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__358
+	je __CC__358
 	jmp __CC__357
 __CC__360:
 
@@ -1206,8 +1224,8 @@ cmpl $3,308(%esp)
 jne __CC__361 /* !big(r) <-> type(r) != 3 -> r */
 movl %eax, (%esp) /* big(r) */
 call is_true
-cmpl $3, %eax
-jb __CC__362 /* small(%eax) -> %eax > 3 -> %eax */
+cmpl $0, %eax
+je __CC__362 /* small(%eax) -> %eax > 3 -> %eax */
 __CC__361:
 	movl $1, %eax
 movl %eax, 304(%esp)
@@ -1243,13 +1261,14 @@ __CC__365:
 	jmp __CC__367
 __CC__366:
 	movl 220(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 216(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__365
+	je __CC__365
 	jmp __CC__364
 __CC__367:
 
@@ -1297,13 +1316,14 @@ __CC__371:
 	jmp __CC__373
 __CC__372:
 	movl 168(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 552(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__371
+	je __CC__371
 	jmp __CC__370
 __CC__373:
 
@@ -1316,8 +1336,8 @@ cmpl $3,164(%esp)
 jne __CC__374 /* !big(r) <-> type(r) != 3 -> r */
 movl %eax, (%esp) /* big(r) */
 call is_true
-cmpl $3, %eax
-jb __CC__375 /* small(%eax) -> %eax > 3 -> %eax */
+cmpl $0, %eax
+je __CC__375 /* small(%eax) -> %eax > 3 -> %eax */
 __CC__374:
 	movl $1, %eax
 movl %eax, 224(%esp)
@@ -1353,13 +1373,14 @@ __CC__378:
 	jmp __CC__380
 __CC__379:
 	movl 548(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 568(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__378
+	je __CC__378
 	jmp __CC__377
 __CC__380:
 
@@ -1407,13 +1428,14 @@ __CC__384:
 	jmp __CC__386
 __CC__385:
 	movl 700(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 412(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__384
+	je __CC__384
 	jmp __CC__383
 __CC__386:
 
@@ -1426,8 +1448,8 @@ cmpl $3,392(%esp)
 jne __CC__387 /* !big(r) <-> type(r) != 3 -> r */
 movl %eax, (%esp) /* big(r) */
 call is_true
-cmpl $3, %eax
-jb __CC__388 /* small(%eax) -> %eax > 3 -> %eax */
+cmpl $0, %eax
+je __CC__388 /* small(%eax) -> %eax > 3 -> %eax */
 __CC__387:
 	movl $1, %eax
 movl %eax, 396(%esp)
@@ -1463,13 +1485,14 @@ __CC__391:
 	jmp __CC__393
 __CC__392:
 	movl 420(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 416(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__391
+	je __CC__391
 	jmp __CC__390
 __CC__393:
 
@@ -1517,13 +1540,14 @@ __CC__397:
 	jmp __CC__399
 __CC__398:
 	movl 448(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 460(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__397
+	je __CC__397
 	jmp __CC__396
 __CC__399:
 
@@ -1536,8 +1560,8 @@ cmpl $3,452(%esp)
 jne __CC__400 /* !big(r) <-> type(r) != 3 -> r */
 movl %eax, (%esp) /* big(r) */
 call is_true
-cmpl $3, %eax
-jb __CC__401 /* small(%eax) -> %eax > 3 -> %eax */
+cmpl $0, %eax
+je __CC__401 /* small(%eax) -> %eax > 3 -> %eax */
 __CC__400:
 	movl $1, %eax
 movl %eax, 440(%esp)
@@ -1573,13 +1597,14 @@ __CC__404:
 	jmp __CC__406
 __CC__405:
 	movl 536(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 1004(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__404
+	je __CC__404
 	jmp __CC__403
 __CC__406:
 
@@ -1627,13 +1652,14 @@ __CC__410:
 	jmp __CC__412
 __CC__411:
 	movl 388(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 540(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__410
+	je __CC__410
 	jmp __CC__409
 __CC__412:
 
@@ -1646,8 +1672,8 @@ cmpl $3,124(%esp)
 jne __CC__413 /* !big(r) <-> type(r) != 3 -> r */
 movl %eax, (%esp) /* big(r) */
 call is_true
-cmpl $3, %eax
-jb __CC__414 /* small(%eax) -> %eax > 3 -> %eax */
+cmpl $0, %eax
+je __CC__414 /* small(%eax) -> %eax > 3 -> %eax */
 __CC__413:
 	movl $1, %eax
 movl %eax, 104(%esp)
@@ -1683,13 +1709,14 @@ __CC__417:
 	jmp __CC__419
 __CC__418:
 	movl 336(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 752(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__417
+	je __CC__417
 	jmp __CC__416
 __CC__419:
 
@@ -1737,13 +1764,14 @@ __CC__423:
 	jmp __CC__425
 __CC__424:
 	movl 868(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 872(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__423
+	je __CC__423
 	jmp __CC__422
 __CC__425:
 
@@ -1756,8 +1784,8 @@ cmpl $3,864(%esp)
 jne __CC__426 /* !big(r) <-> type(r) != 3 -> r */
 movl %eax, (%esp) /* big(r) */
 call is_true
-cmpl $3, %eax
-jb __CC__427 /* small(%eax) -> %eax > 3 -> %eax */
+cmpl $0, %eax
+je __CC__427 /* small(%eax) -> %eax > 3 -> %eax */
 __CC__426:
 	movl $1, %eax
 movl %eax, 584(%esp)
@@ -1797,13 +1825,14 @@ __CC__430:
 	jmp __CC__432
 __CC__431:
 	movl 884(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 888(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__430
+	je __CC__430
 	jmp __CC__429
 __CC__432:
 
@@ -1859,13 +1888,14 @@ __CC__436:
 	jmp __CC__438
 __CC__437:
 	movl 1000(%esp),%eax
+	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,(%esp)
 	movl 996(%esp),%eax
 	/*andl $0xFFFFFFFC,%eax*/
 	movl %eax,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne __CC__436
+	je __CC__436
 	jmp __CC__435
 __CC__438:
 
@@ -1878,8 +1908,8 @@ cmpl $3,1016(%esp)
 jne __CC__439 /* !big(r) <-> type(r) != 3 -> r */
 movl %eax, (%esp) /* big(r) */
 call is_true
-cmpl $3, %eax
-jb __CC__440 /* small(%eax) -> %eax > 3 -> %eax */
+cmpl $0, %eax
+je __CC__440 /* small(%eax) -> %eax > 3 -> %eax */
 __CC__439:
 	movl $1, %eax
 movl %eax, 1020(%esp)
@@ -1908,4 +1938,18 @@ make_list:
 make_dict:
 	call create_dict
 	orl $3, %eax
+	ret
+
+equal_any:
+	movl 4(%esp), %eax
+	xorl 8(%esp), %eax
+	andl $3, %eax
+	cmpl $0, %eax
+	jne equal_any_end
+	andl $0xFFFFFFFC, 4(%esp)
+	andl $0xFFFFFFFC, 8(%esp)
+	jmp equal
+	ret
+	equal_any_end:
+	movl $0, %eax
 	ret

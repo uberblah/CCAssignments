@@ -103,7 +103,7 @@ def exprEval(n,loc):
         tmp2 = genTmp()
         return exprEval(n[1],tmp1) + exprEval(n[2],tmp2) + [[n[0],loc,tmp1,tmp2]]
     else:
-        #print n
+        print n
         raise Exception
 
 #def discardEval(n):
@@ -319,6 +319,20 @@ make_list:
 make_dict:
 	call create_dict
 	orl $3, %eax
+	ret
+
+equal_any:
+	movl 4(%esp), %eax
+	xorl 8(%esp), %eax
+	andl $3, %eax
+	cmpl $0, %eax
+	jne equal_any_end
+	andl $0xFFFFFFFC, 4(%esp)
+	andl $0xFFFFFFFC, 8(%esp)
+	jmp equal
+	ret
+	equal_any_end:
+	movl $0, %eax
 	ret
 '''
 

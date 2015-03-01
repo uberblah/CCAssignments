@@ -98,8 +98,8 @@ cmpl $3,<cond>
 jne <tlab> /* !big(r) <-> type(r) != 3 -> r */
 movl <reg>, (%esp) /* big(r) */
 call is_true
-cmpl $3, %eax
-jb <elab> /* small(%eax) -> %eax > 3 -> %eax */
+cmpl $0, %eax
+je <elab> /* small(%eax) -> %eax > 3 -> %eax */
 <tlab>:
 	<t>
 	jmp <plab>
@@ -128,13 +128,14 @@ ja <elab>
 	jmp <plab>
 <clab>:
 	movl <a>,<reg>
+	/*andl $0xFFFFFFFC,<reg>*/
 	movl <reg>,(%esp)
 	movl <b>,<reg>
 	/*andl $0xFFFFFFFC,<reg>*/
 	movl <reg>,4(%esp)
-	call equal
+	call equal_any
 	cmpl $0, %eax
-	jne <elab>
+	je <elab>
 	jmp <tlab>
 <plab>:
 '''

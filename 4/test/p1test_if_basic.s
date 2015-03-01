@@ -14,8 +14,8 @@ cmpl $3,56(%esp)
 jne __CC__7 /* !big(r) <-> type(r) != 3 -> r */
 movl %eax, (%esp) /* big(r) */
 call is_true
-cmpl $3, %eax
-jb __CC__8 /* small(%eax) -> %eax > 3 -> %eax */
+cmpl $0, %eax
+je __CC__8 /* small(%eax) -> %eax > 3 -> %eax */
 __CC__7:
 	movl $4, %eax
 movl %eax, 48(%esp)
@@ -40,8 +40,8 @@ cmpl $3,36(%esp)
 jne __CC__10 /* !big(r) <-> type(r) != 3 -> r */
 movl %eax, (%esp) /* big(r) */
 call is_true
-cmpl $3, %eax
-jb __CC__11 /* small(%eax) -> %eax > 3 -> %eax */
+cmpl $0, %eax
+je __CC__11 /* small(%eax) -> %eax > 3 -> %eax */
 __CC__10:
 	movl $4, %eax
 movl %eax, 40(%esp)
@@ -70,4 +70,18 @@ make_list:
 make_dict:
 	call create_dict
 	orl $3, %eax
+	ret
+
+equal_any:
+	movl 4(%esp), %eax
+	xorl 8(%esp), %eax
+	andl $3, %eax
+	cmpl $0, %eax
+	jne equal_any_end
+	andl $0xFFFFFFFC, 4(%esp)
+	andl $0xFFFFFFFC, 8(%esp)
+	jmp equal
+	ret
+	equal_any_end:
+	movl $0, %eax
 	ret
