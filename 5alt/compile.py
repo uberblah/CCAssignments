@@ -75,6 +75,8 @@ def compileIR(n, choices):
 			s = getl(n[i])
 			if s[0] != '%':
 				setup += 'movl ' + s + ', %eax\nmovl %eax, ' + str(4*(i-3)) + '(%esp)\n'
+		if n[1] == 'call_closure':
+			setup += 'movl $' + str(len(n[2:])) + ', %eax' # varargs for call_closure
 		if n[1] != '%eax':
 			return setup + 'call ' + n[2] + '\nmovl %eax, ' + getl(n[1])
 		else:
@@ -114,20 +116,21 @@ def mincall(llir):
 			a = max(a,mincall(i[2]),mincall(i[3]))
 	return a
 
-def compile(n):
+def compileFunc(name,n):
 	def genHeader(stacksize):
-		stackMake = "subl $" + str(4*stacksize) + ", %esp"
-		return simpleHead + "\n" + stackMake
+		stackMake = "subl $" + str(4*stacksize) + ", %esp\n"
+		for i in ((4,"%ebp"),(8,"%ebx"),(12,"%edi"),(16,"%esi")):
+			stackMake += "movl " + i[1] + ", " + str(4*stacksize-i[0]) + "(%esp)\n"
+		return name + ":\n" + stackMake
 	def genFooter(stacksize):
-		stackDestroy = "subl $-" + str(4*stacksize) + ", %esp"
-		return stackDestroy + "\n" + simpleFoot
+		retLabel = "movl $0, %eax\nret_" + name + ":\n"
+		stackDestroy = ""
+		for i in ((4,"%ebp"),(8,"%ebx"),(12,"%edi"),(16,"%esi")):
+			stackDestroy += "movl " + str(4*stacksize-i[0]) + "(%esp), " + i[1] + "\n"
+		stackDestroy = "subl $-" + str(4*stacksize) + ", %esp\n"
+		return retLabel + stackDestroy + "\nret\n"
 	#ast = parse(n)
-	lisp = lispexpr(parse(n))
-	names = getStrings(lisp)
-
-	prefix = getPrefix(names)
-	settmpfunc(getGenTmp(prefix))
-	irhl = progEval(lisp)
+	irhl = progEval(n)
 
 	llir = HL2LLIR(irhl)
 	irnames = getStrings(llir)
@@ -138,16 +141,24 @@ def compile(n):
 	for n in irnames:
 		choices[n] = spot
 		spot += 1
-	stacksize = spot+1
+	stacksize = spot # spot-2
 
 	llir,spills,spilled = spillIR(llir,choices)
 
 	head = genHeader(stacksize)
-	foot = "movl $0, %eax\n" + genFooter(stacksize)
-	#foot = "movl $0, %eax\nleave\nret\n"
-	#for l in llir:
-	#	print l
-	return head + "\n" + compileIR(llir,choices) + "\n" + foot + functions
+	foot = genFooter(stacksize)
+	return head + "\n" + compileIR(llir,choices) + "\n" + foot
+
+def compile(n):
+	lisp = lispexpr(parse(n))
+	names = getStrings(n)
+	prefix = getPrefix(names)
+	settmpfunc(getGenTmp(prefix))
+	funcs = {'main':lisp}
+	compiled = ""
+	for i in funcs.items():
+		compiled += compileFunc(i[0],i[1])
+	return ".global main\n" + compiled + functions
 
 r = sys.argv[1]
 l = len(r)

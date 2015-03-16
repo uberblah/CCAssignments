@@ -41,6 +41,18 @@ equal_any:
 	equal_any_end:
 	movl $0, %eax
 	ret
+
+call_closure:
+	addl $-8, %esp
+	movl 12(%esp), %eax /* place parameter in %eax */
+	movl %eax, 4(%esp) /* setup parameters for two calls */
+	movl %eax, 0(%esp)
+	call get_free_vars /* first call */
+	movl %eax, 12(%esp)
+	addl $4, %esp
+	call get_fun_ptr /* second call */
+	addl $4, %esp
+	jmp *%eax
 '''
 
 reg2col = {("reg", "%eax"): 0, ("reg", "%ebx"): 1, ("reg", "%ecx"):2, ("reg", "%edx"):3, ("reg", "%esi"):4, ("reg", "%edi"):5}

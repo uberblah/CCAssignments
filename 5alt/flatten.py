@@ -17,9 +17,7 @@ def exprEval(n,loc):
 	elif n[0] == 'call' or n[0] == 'apply':
 		l = len(n)-2
 		tmps = map(genTmp,range(l))
-		call = ['call',loc,n[1][1]]
-		for i in tmps:
-			call.append(i)
+		call = ['call',loc,n[1]] + tmps
 		return concat(map(exprEval,n[2:],tmps)) + [call]
 	elif n[0] == 'list':
 		l = len(n)-1

@@ -42,7 +42,7 @@ def lispexpr(n):
 			elif n.name == 'False':
 				return ['const',False]
 			elif n.name == 'input':
-				return ['asmname','input_int']
+				return ['name','input_int']
 			return ['name',n.name]
 		elif isinstance(n, Add):
 			return ['+',le(n.left),le(n.right)]
@@ -51,7 +51,9 @@ def lispexpr(n):
 		elif isinstance(n, IfExp):
 			return ['ifexp'] + map(le,n.getChildren())
 		elif isinstance(n, CallFunc):
-			return ['call',le(n.node)] + le(n.args)
+			if isinstance(n.node,Name) and n.node.name == 'input':
+				return ['call','input_int']
+			return ['call','call_closure',le(n.node)] + le(n.args)
 		elif isinstance(n, Lambda):
 			return ['lambda',n.argnames,le(Stmt([Return(n.code)]))]
 		elif isinstance(n, Return):

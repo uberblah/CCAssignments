@@ -1,11 +1,11 @@
 .global main
 main:
-pushl %ebp
-pushl %ebx
-pushl %edi
-pushl %esi
+subl $1636, %esp
+movl %ebp, 1632(%esp)
+movl %ebx, 1628(%esp)
+movl %edi, 1624(%esp)
+movl %esi, 1620(%esp)
 
-subl $1640, %esp
 movl $8, %ebp
 movl %ebp, 104(%esp)
 movl $8, %ebp
@@ -4250,12 +4250,9 @@ __CC__316:
 movl 528(%esp), %ebp
 movl %ebp, 828(%esp)
 movl $0, %eax
-subl $-1640, %esp
+ret_main:
+subl $-1636, %esp
 
-popl %esi
-popl %edi
-popl %ebx
-popl %ebp
 ret
 
 make_list:
@@ -4284,3 +4281,15 @@ equal_any:
 	equal_any_end:
 	movl $0, %eax
 	ret
+
+call_closure:
+	addl $-8, %esp
+	movl 12(%esp), %eax /* place parameter in %eax */
+	movl %eax, 4(%esp) /* setup parameters for two calls */
+	movl %eax, 0(%esp)
+	call get_free_vars /* first call */
+	movl %eax, 12(%esp)
+	addl $4, %esp
+	call get_fun_ptr /* second call */
+	addl $4, %esp
+	jmp *%eax
