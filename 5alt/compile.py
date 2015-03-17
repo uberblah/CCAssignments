@@ -10,6 +10,7 @@ from flatten import *
 from util import *
 from spill import *
 from constants import *
+from closure import delambdify
 #import dsatur
 import sys
 
@@ -51,8 +52,10 @@ def compileIR(n, choices):
 				return "$5"
 			else:
 				return "$1"
-		else:
+		elif isinstance(e,int):
 			return "$" + str(e*4)
+		else:
+			return str(e)
 	def getl(name):
 		if not isinstance(name, tuple):
 			if name not in choices:
@@ -62,6 +65,8 @@ def compileIR(n, choices):
 		else:
 			if name[0] == 'reg':
 				return str(name[1]) # + "/*" + str(name) + "*/"
+			elif name[0] == 'arg':
+				return choices[name]
 			else:
 				return translit(name[1]) # + "/*" + str(name) + "*/"
 	def call(n):
@@ -81,6 +86,10 @@ def compileIR(n, choices):
 			return setup + 'call ' + n[2] + '\nmovl %eax, ' + getl(n[1])
 		else:
 			return setup + 'call ' + n[2]
+	def ret(n):
+		label = "ret_" + name
+		loc = getl(n[1])
+		return "movl " + loc + ", %eax\njmp " + label + "\n"
 	def default(n): # generic function
 		s = []
 		for i in n[1:]:
@@ -116,6 +125,14 @@ def mincall(llir):
 			a = max(a,mincall(i[2]),mincall(i[3]))
 	return a
 
+def minarg(n):
+	if not isinstance(n, tuple) and not isinstance(n, list):
+		return 0
+	elif len(n) >= 2 and n[0] == 'arg':
+		return n[1]+1
+	else:
+		return max(map(minarg,n)+[0])
+
 def compileFunc(name,n):
 	def genHeader(stacksize):
 		stackMake = "subl $" + str(4*stacksize) + ", %esp\n"
@@ -142,6 +159,8 @@ def compileFunc(name,n):
 		choices[n] = spot
 		spot += 1
 	stacksize = spot # spot-2
+	for i in range(minarg(llir)):
+		choices[('arg',i)] = "$"+str(4*(stacksize+1+i))
 
 	llir,spills,spilled = spillIR(llir,choices)
 
@@ -151,12 +170,15 @@ def compileFunc(name,n):
 
 def compile(n):
 	lisp = lispexpr(parse(n))
-	names = getStrings(n)
+	names = getStrings(lisp)
 	prefix = getPrefix(names)
 	settmpfunc(getGenTmp(prefix))
-	funcs = {'main':lisp}
+
+	funcs = delambdify(lisp)
+	#funcs = {'main':lisp}
 	compiled = ""
 	for i in funcs.items():
+		#print i
 		compiled += compileFunc(i[0],i[1])
 	return ".global main\n" + compiled + functions
 

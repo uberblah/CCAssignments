@@ -52,6 +52,8 @@ def exprEval(n,loc):
 		tmp1 = genTmp()
 		tmp2 = genTmp()
 		return exprEval(n[1],tmp1) + exprEval(n[2],tmp2) + [[n[0],loc,tmp1,tmp2]]
+	elif n[0] == 'arg':
+		return [['=name',loc,n]]
 	else:
 		print n
 		raise Exception

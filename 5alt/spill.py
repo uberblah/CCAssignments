@@ -6,6 +6,11 @@ def spillIR(ir,choices):
 	spilled = [False]
 	def tmpgen():
 		return ('reg','%ebp')
+	def isspilled(var):
+		if var in choices and choices[var] > 5:
+			return True
+		elif isinstance(var,tuple) and var[0] == 'arg':
+			return True
 	def spillgen():
 		t = tmpgen()
 		spills.add(t)

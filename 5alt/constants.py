@@ -19,7 +19,7 @@ make_list:
 	movl 4(%esp), %eax
 	pushl %eax
 	call create_list
-	popl %ebx
+	popl %ecx
 	orl $3, %eax
 	ret
 

@@ -94,7 +94,6 @@ def compileIR(n, choices):
 	tdict['+'] = genwrap(addgen,gentmp,getl)
 	tdict['=='] = genwrap(eqgen,gentmp,getl)
 	tdict['if'] = lambda x: ifgen(gentmp,getl,x[1],compileIR(x[2][0],choices),compileIR(x[3][0],choices))
-	#print n
 	return "\n".join(filter(lambda x: len(x), map(lambda x: tdict[x[0]](x),n)))
 
 def getlocation(color):

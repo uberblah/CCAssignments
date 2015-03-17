@@ -1,24 +1,31 @@
 from compiler import parse
 from lispify import lispexpr
 
+def union(n):
+	return reduce(lambda x,y:x|y,n,set())
+
 def unname(n):
+	def rename(x):
+		return '__var__' + x
 	if (not isinstance(n,list) and not isinstance(n,tuple)) or not(len(n)):
 		return n
 	elif n[0] == 'let':
-		return ['let','__var__'+n[1]]+unname(n[2:])
+		return ['let',rename(n[1])]+unname(n[2:])
 	elif n[0] == 'name':
-		return ['name','__var__'+n[1]]
+		return ['name',rename(n[1])]
 	elif n[0] == '=' and not isinstance(n[1],list):
-		return ['=','__var__'+n[1],n[2]]
+		return ['=',rename(n[1]),unname(n[2])]
 	elif n[0] == 'lambda':
 		return ['lambda',map(lambda x: '__var__' + x,n[1]),unname(n[2])]
 	else:
 		return map(unname,n)
 
+def injectbegin(source,dest):
+	return ['begin',source+dest[1]]
 def initargs(n,args):
-	return map(lambda x,y:['=',x,('arg',y)],args,range(1,len(args)+1)) + [n]
+	return injectbegin(map(lambda x,y:['=',x,('arg',y)],args,range(1,len(args)+1)),n)
 
-def lift(n):
+def lambdaflatten(n):
 	lambdanum = [1]
 	lambdadict = {}
 	def rec(n):
@@ -28,7 +35,7 @@ def lift(n):
 			name = '__lambda__'+str(lambdanum[0])
 			lambdanum[0] += 1
 			lambdadict[name] = rec(n[2])
-			return ['lambdaname','__lambda__'+str(name)]
+			return ['call','create_closure','__lambda__'+str(name),'env']
 		else:
 			return map(rec,n)
 	lambdadict['main'] = rec(n)
@@ -40,16 +47,17 @@ def boundvars(n):
 	elif len(n) and n[0] == '=' and isinstance(n[1],str):
 		return {n[1]}
 	else:
-		return reduce(lambda x,y:x|y,map(boundvars,n),set())
+		return union(map(boundvars,n))
+		#return reduce(lambda x,y:x|y,map(boundvars,n),set())
 
 def freevars(n):
 	def names(n):
-		if not isinstance(n,list) and not isinstance(n,tuple):
+		if (not isinstance(n,list) and not isinstance(n,tuple)) or not(len(n)):
 			return set()
 		elif n[0] == 'name':
 			return {n[1]}
 		elif n[0] == 'let':
-			return set(map(freevars,n[2:]))-{n[1]}
+			return union(map(freevars,n[2:]))-{n[1]}
 		elif n[0] == 'lambda':
 			return freevars(n[2])-set(n[1])
 		else:
@@ -88,6 +96,7 @@ def heapify(n,env=lambda x,y:x):
 		return newdict
 
 	bv = boundvars(n)
+	fv = freevars(n)
 	#ev = list(bv)
 	ev = list(bv & dependent(n))
 	evdict = dict(map(lambda x,y:(x,1+y),list(ev),range(len(ev))))
@@ -107,10 +116,13 @@ def heapify(n,env=lambda x,y:x):
 			return env(n,['sub',s,0])
 	def initnewenv():
 		return [['=','env',['list'] + [('arg',0)] + map(lambda x:['const',0],ev)]]
-	return initnewenv() + [rebind(n,getbind,recenv)]
+	if len(fv):
+		return injectbegin(initnewenv(),rebind(n,getbind,recenv))
+	else:
+		return rebind(n,getbind,recenv)
 
 def delambdify(n):
-	return lift(heapify(unname(n)))
+	return lambdaflatten(heapify(unname(n)))
 
 def delambp(n):
-	return lift(heapify(unname(lispexpr(parse(n)))))
+	return lambdaflatten(heapify(unname(lispexpr(parse(n)))))
