@@ -2,7 +2,7 @@ from util import *
 from tmp import *
 
 tmpGenRef = [0]
-genTmp = lambda: tmpGenRef[0]()
+genTmp = lambda *args: tmpGenRef[0]()
 
 # instead of dealing with Python AST nodes directly, translate expressions into this format
 def exprEval(n,loc):
@@ -53,7 +53,7 @@ def exprEval(n,loc):
 		tmp2 = genTmp()
 		return exprEval(n[1],tmp1) + exprEval(n[2],tmp2) + [[n[0],loc,tmp1,tmp2]]
 	elif n[0] == 'arg':
-		return [['=name',loc,n]]
+		return [['=name',loc,('arg',n[1])]]
 	else:
 		print n
 		raise Exception
@@ -70,9 +70,14 @@ def printEval(n):
 	t1 = genTmp()
 	return exprEval(n[1],t1) + [['call',genTmp(),'print_any',t1]]
 
+def retEval(n):
+	t1 = genTmp()
+	return exprEval(n[1],t1) + [['ret',t1]]
+
 def assEval(n):
 	if isinstance(n[1], list):
 		if n[1][0] != 'sub':
+			print n
 			raise Exception
 		tdict = genTmp()
 		tkey = genTmp()
@@ -91,6 +96,8 @@ def stmtEval(n):
 			return printEval(n)
 		elif n[0] == '=':
 			return assEval(n)
+		elif n[0] == 'return':
+			return retEval(n)
 		else: #expression
 			d = discardEval(n)
 			return discardEval(n)
@@ -98,5 +105,6 @@ def stmtEval(n):
 	return concat(map(subStmtEval,n[1]))
 
 def progEval(n):
+	#print n
 	assert n[0] == 'begin', "Non-program"
 	return stmtEval(n)

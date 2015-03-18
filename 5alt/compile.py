@@ -23,14 +23,14 @@ def settmpfunc(f):
 
 def HL2LLIR(n):
 	tdict = {} # TODO: translation dictionary in separate file
-	tdict['+'] = tdict['=='] = tdict['!='] = tdict['is'] = tdict['call'] = lambda x: [x]
+	tdict['+'] = tdict['=='] = tdict['!='] = tdict['is'] = tdict['call'] = tdict['ret'] = lambda x: [x]
 	tdict['=lit'] = tdict['=name'] = tdict['name='] = lambda x: [["movl", x[2], x[1]]]
 	tdict['-'] = lambda x: [["movl", x[2], x[1]], ["negl", x[1]]]
 	tdict['print'] = lambda x: [["pushl", x[1]], ["call", "print_int_nl"], ["subl", ("lit", -4), ("reg", "%esp")]]
 	tdict['if'] = lambda x: [['if',x[1],HL2LLIR(x[2]),HL2LLIR(x[3])]]
 	return concat(map(lambda x: tdict[x[0]](x),n))
 
-def compileIR(n, choices):
+def compileIR(n, name, choices):
 	def tmovl(x):
 		a = getl(x[1])
 		b = getl(x[2])
@@ -71,7 +71,6 @@ def compileIR(n, choices):
 				return translit(name[1]) # + "/*" + str(name) + "*/"
 	def call(n):
 		setup = ''
-		#print n
 		for i in range(3,len(n)):
 			s = getl(n[i])
 			if s[0] == '%':
@@ -87,6 +86,7 @@ def compileIR(n, choices):
 		else:
 			return setup + 'call ' + n[2]
 	def ret(n):
+		#print n
 		label = "ret_" + name
 		loc = getl(n[1])
 		return "movl " + loc + ", %eax\njmp " + label + "\n"
@@ -100,11 +100,12 @@ def compileIR(n, choices):
 	tdict['movl'] = tmovl
 	tdict['pushl'] = tpushl
 	tdict['call'] = call
+	tdict['ret'] = ret
 
 	tdict['is'] = genwrap(isgen,gentmp,getl)
 	tdict['+'] = genwrap(addgen,gentmp,getl)
 	tdict['=='] = genwrap(eqgen,gentmp,getl)
-	tdict['if'] = lambda x: ifgen(gentmp,getl,x[1],compileIR(x[2][0],choices),compileIR(x[3][0],choices))
+	tdict['if'] = lambda x: ifgen(gentmp,getl,x[1],compileIR(x[2][0],name,choices),compileIR(x[3][0],name,choices))
 	#print n
 	return "\n".join(filter(lambda x: len(x), map(lambda x: tdict[x[0]](x),n)))
 
@@ -144,7 +145,7 @@ def compileFunc(name,n):
 		stackDestroy = ""
 		for i in ((4,"%ebp"),(8,"%ebx"),(12,"%edi"),(16,"%esi")):
 			stackDestroy += "movl " + str(4*stacksize-i[0]) + "(%esp), " + i[1] + "\n"
-		stackDestroy = "subl $-" + str(4*stacksize) + ", %esp\n"
+		stackDestroy += "subl $-" + str(4*stacksize) + ", %esp\n"
 		return retLabel + stackDestroy + "\nret\n"
 	#ast = parse(n)
 	irhl = progEval(n)
@@ -155,18 +156,20 @@ def compileFunc(name,n):
 	choices = deepcopy(reg2col)
 	spot = 6 + mincall(llir)
 	# spot = 6
-	for n in irnames:
-		choices[n] = spot
+	for i in irnames:
+		choices[i] = spot
 		spot += 1
 	stacksize = spot # spot-2
 	for i in range(minarg(llir)):
-		choices[('arg',i)] = "$"+str(4*(stacksize+1+i))
+		choices[('arg',i)] = str(4*(stacksize+1+i)) + "(%esp)"
 
 	llir,spills,spilled = spillIR(llir,choices)
 
 	head = genHeader(stacksize)
 	foot = genFooter(stacksize)
-	return head + "\n" + compileIR(llir,choices) + "\n" + foot
+	#print n
+	#print llir
+	return head + "\n" + compileIR(llir,name,choices) + "\n" + foot
 
 def compile(n):
 	lisp = lispexpr(parse(n))
@@ -175,6 +178,7 @@ def compile(n):
 	settmpfunc(getGenTmp(prefix))
 
 	funcs = delambdify(lisp)
+	#print funcs
 	#funcs = {'main':lisp}
 	compiled = ""
 	for i in funcs.items():

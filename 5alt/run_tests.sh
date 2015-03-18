@@ -1,6 +1,6 @@
 #!/bin/sh
 
-for i in ../tests/p0test/*.py ../tests/p1test/*.py ../tests/instr_tests/*.py
+for i in ../tests/p2test/*.py ../tests/p0test/*.py ../tests/p1test/*.py ../tests/instr_tests/*.py
 do
 	f="${i%.py}"
 	echo "Test for $i:"

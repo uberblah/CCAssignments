@@ -35,7 +35,7 @@ def lambdaflatten(n):
 			name = '__lambda__'+str(lambdanum[0])
 			lambdanum[0] += 1
 			lambdadict[name] = rec(n[2])
-			return ['call','create_closure','__lambda__'+str(name),'env']
+			return ['call','make_closure',['const','$'+name],['name','env']]
 		else:
 			return map(rec,n)
 	lambdadict['main'] = rec(n)
@@ -70,6 +70,10 @@ def heapify(n,env=lambda x,y:x):
 			if (not isinstance(n,list) and not isinstance(n,tuple)) or not(len(n)):
 				return n
 			elif n[0] == 'name':
+				bind = getbind(n[1])
+				if isinstance(bind,list):
+					#print bind
+					return bind
 				return ['name',getbind(n[1])]
 			elif n[0] == '=' and not isinstance(n[1],list):
 				return ['=',getbind(n[1]),rec(n[2])]
@@ -99,27 +103,28 @@ def heapify(n,env=lambda x,y:x):
 	fv = freevars(n)
 	#ev = list(bv)
 	ev = list(bv & dependent(n))
-	evdict = dict(map(lambda x,y:(x,1+y),list(ev),range(len(ev))))
+	evdict = dict(map(lambda x,y:(x,y),list(ev),range(1,1+len(ev))))
 	# ev = listdict(list(bv)) # environment variables
 
 	def getbind(i):
 		if i in evdict:
-			return ['sub','env',['const',evdict[i]+1]]
+			return ['sub',['name','env'],['const',evdict[i]]]
 		elif i in bv:
 			return i
 		else:
-			return env(i,['sub',('arg',0),0])
+			#return env(i,['sub',('arg',0),['const',0]])
+			return env(i,('arg',0))
 	def recenv(n,s):
 		if n in ev:
-			return ['sub',s,evdict[n]]
+			return ['sub',s,['const',evdict[n]]]
 		else:
-			return env(n,['sub',s,0])
+			return env(n,['sub',s,['const',0]])
 	def initnewenv():
 		return [['=','env',['list'] + [('arg',0)] + map(lambda x:['const',0],ev)]]
-	if len(fv):
-		return injectbegin(initnewenv(),rebind(n,getbind,recenv))
-	else:
-		return rebind(n,getbind,recenv)
+	#if len(fv):
+	return injectbegin(initnewenv(),rebind(n,getbind,recenv))
+	#else:
+	#	return rebind(n,getbind,recenv)
 
 def delambdify(n):
 	return lambdaflatten(heapify(unname(n)))

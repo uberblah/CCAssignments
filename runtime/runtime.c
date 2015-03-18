@@ -520,7 +520,9 @@ static pyobj* list_subscript(list ls, pyobj n)
     else if (0 <= ls.len + i && ls.len + i < ls.len)
       return &(ls.data[ls.len + i]);
     else {
-      printf("ERROR: list_nth index larger than list");
+      printf("ERROR: list_nth index larger than list\n");
+      printf("SUBSCRIPT: %d/%d\n",i,ls.len);
+      assert(0);
       exit(1);
     }
   }
@@ -529,12 +531,14 @@ static pyobj* list_subscript(list ls, pyobj n)
     if (b < ls.len)
       return &(ls.data[b]);
     else {
-      printf("ERROR: list_nth index larger than list");
+      printf("ERROR: list_nth index larger than list\n");
+      assert(0);
       exit(1);
     }
   }
   default:
-    printf("ERROR: list_nth expected integer index");
+    printf("ERROR: list_nth expected integer index\n");
+    assert(0);
     exit(1);
   }
 }
@@ -688,6 +692,7 @@ pyobj set_subscript(pyobj c, pyobj key, pyobj val)
   }
   default:
     printf("error in set subscript, not a list or dictionary\n");
+    printf("%d %d %d\n",c,key,val);
     assert(0);
   }
   assert(0);

@@ -19,12 +19,22 @@ make_list:
 	movl 4(%esp), %eax
 	pushl %eax
 	call create_list
-	popl %ecx
+	addl $4, %esp
 	orl $3, %eax
 	ret
 
 make_dict:
 	call create_dict
+	orl $3, %eax
+	ret
+
+make_closure:
+	movl 4(%esp), %eax
+	movl 8(%esp), %ecx
+	pushl %ecx
+	pushl %eax
+	call create_closure
+	addl $8, %esp
 	orl $3, %eax
 	ret
 
