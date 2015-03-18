@@ -102,7 +102,8 @@ def heapify(n,env=lambda x,y:x):
 	bv = boundvars(n)
 	fv = freevars(n)
 	#ev = list(bv)
-	ev = list(bv & dependent(n))
+	dv = dependent(n)
+	ev = list(bv & dv)
 	evdict = dict(map(lambda x,y:(x,y),list(ev),range(1,1+len(ev))))
 	# ev = listdict(list(bv)) # environment variables
 
@@ -121,10 +122,10 @@ def heapify(n,env=lambda x,y:x):
 			return env(n,['sub',s,['const',0]])
 	def initnewenv():
 		return [['=','env',['list'] + [('arg',0)] + map(lambda x:['const',0],ev)]]
-	#if len(fv):
-	return injectbegin(initnewenv(),rebind(n,getbind,recenv))
-	#else:
-	#	return rebind(n,getbind,recenv)
+	if len(dv):
+		return injectbegin(initnewenv(),rebind(n,getbind,recenv))
+	else:
+		return rebind(n,getbind,recenv)
 
 def delambdify(n):
 	return lambdaflatten(heapify(unname(n)))

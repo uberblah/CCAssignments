@@ -8,7 +8,7 @@ from tmp import *
 from pseudo import *
 from flatten import *
 from util import *
-from spill import *
+from irspill import *
 from constants import *
 from closure import delambdify
 #import dsatur
