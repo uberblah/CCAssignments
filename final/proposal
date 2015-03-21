@@ -1,0 +1,21 @@
+Members of team: Dakota Fisher, Miles Rufat-Latre
+
+Background:
+Most programming languages have methods to specify that code previously written elsewhere is referenced or used in upcoming code. In particular, C has header files and the pre-processor to specify what functions exist in a file and their types while Guile Scheme uses a module system which lets one export variables from one module and import variables from another. To reference C code from Guile, however, requires manually dynamically linking the file and providing the type of each variable exported (including procedures). This requirement impedes interoperability between the two languages, and is inefficient. However, it is possible to determine this information from the C header file programmatically and resolve these symbols at link-time, avoiding this process.
+
+Problem Abstract:
+The intent of the project is to make a proof-of-concept compiler for a subset of R5RS Scheme extended with the functionality to import modules written in the language alongside headers written in C.
+
+Problem:
+C header files to be considered are a valid subset of files written in the C language specified in C99.
+This subset will exclude the definition and use of non-external variables but will permit the use of typedef, struct and union.
+
+The procedures of the subset of R5RS to be considered will include:
+- cons
+- display
+- write
+- simple integer arithmetic
+- some operations on boolean values
+
+The syntactical constructs from R5RS to be supported are if, set!, lambda and define,
+
