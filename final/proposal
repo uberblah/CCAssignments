@@ -1,7 +1,7 @@
 Members of team: Dakota Fisher, Miles Rufat-Latre
 
 Basic problem:
-Most FFI systems require reconstructing available metadata, in particular type information. This takes time and is literally repeated effort (once for each language, including once for the source language).
+Most foreign function interface (FFI) systems require reconstructing available metadata, in particular type information, in the host language (the language in which inter-language calls are being made). This takes time, literally requiring repeated effort (a header or equivalent file must be made once for each language, including once for the source language).
 
 Problem definition:
 The problem to be solved, in this project, is the construction of a compiler for a Scheme language variant with built-in support for using and linking libraries written in C given header information. The Scheme language will be a smaller variant of R5RS with the addition of semantics for exporting functions to be used by C applications and import functions from C libraries based on their header files. The compiler should be able to generate at least:
@@ -9,11 +9,43 @@ The problem to be solved, in this project, is the construction of a compiler for
 - Shared object code
 - C header files (corresponding to shared objects)
 
+Examples of problem:
+Consider the following code from section 6.20.6 (Dynamic FFI) of the Guile 2.0.5 Manual [1]:
+
+     (define-module (math bessel)
+       #:use-module (system foreign)
+       #:export (j0))
+
+     (define libm (dynamic-link "libm"))
+
+     (define j0
+       (pointer->procedure double
+                           (dynamic-func "j0" libm)
+			   (list double)))
+
+Generalizing this, it takes four lines of source (define-module...define libm) per header file plus four lines of source times the number of procedures to be imported from C. For larger libraries, this is an obscene expense of programmer time. In addition, it requires dynamic linking at evaluation time, which may have additional expense.
+
+In the other direction, the primary method for invoking Guile functions from C appears to be invoking the guile shell scm_shell inside of scm_boot_guile, as in this example code from Section 5.2.2 of the Guile manual:
+
+     static void
+     inner_main (void *closure, int argc, char **argv)
+     {
+       scm_shell (argc, argv);
+     }
+
+     int
+     main (int argc, char **argv)
+     {
+       scm_boot_guile (argc, argv, inner_main, 0);
+     }
+
+The method seen here requires additional techniques, and prevents calling Scheme functions in a natural manner without wrapping the entire program.
+
 Approach to Problem:
 The approach to the specific problem is to write one program to extract the type information (and additional metadata) from the C header file.  This program is then invoked by the compiler in the process of importing C functions into the Scheme file. The rest of the compiler is written as a relatively simple compiler, to permit more time to focus on C integration and the additional semantics.
 
 Why That Approach Will Work:
-This approach builds on existing FFI systems. The Guile FFI system already automates the process of converting a pointer to a procedure given sufficient type information (automatically converting types where it sees fit). It is possible to export any native function in a shared object, and any such functions not conforming to C calling conventions can be wrapped by others which are exposed instead (that is, it is possible to generate such toplevel functions).
+This approach builds on existing FFI systems. The Guile FFI system already automates the process of converting a function pointer to a procedure given sufficient type information (automatically converting types where it sees fit). Similarly, it is possible to export any native function in a shared object, and any such functions not conforming to C calling conventions can be wrapped by others which are exposed instead (that is, it is possible to generate such toplevel functions).
 
 Demonstration:
 Write C and Scheme applications that use the FFI system to write idiomatic code. The applications written in one language will utilize functions written in the other as though they had been written in the original language. Examples may include passing foreign functions as native callbacks and importing and seamlessly using large libraries.
@@ -21,19 +53,4 @@ Write C and Scheme applications that use the FFI system to write idiomatic code.
 Evaluation:
 Write equivalent functions with different FFI systems, comparing code readability, extensibility and maintainability. A significant reduction in length of code is also expected, so length may also be a useful metric.
 
-The intent of the project is to make a proof-of-concept compiler for the Scheme variant.
-
-The procedures of the subset of R5RS to be considered will include:
-- cons
-- display
-- write
-- simple integer arithmetic
-- some operations on boolean values
-
-The syntactical constructs from R5RS to be supported are if, set!, lambda and define
-
-
-
-In particular, C has header files and the pre-processor to specify what functions exist in a file and their types while Guile Scheme uses a module system which lets one export variables from one module and import variables from another.
-To reference C code from Guile, however, requires manually dynamically linking the file and providing the type of each variable exported (including procedures).
-This requirement impedes interoperability between the two languages, and is inefficient. However, it is possible to determine this information from the C header file programmatically and resolve these symbols at link-time, avoiding this process.
+[1] Guile 2.0.5 manual TODO: get links
