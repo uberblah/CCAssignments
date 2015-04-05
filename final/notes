@@ -1,0 +1,84 @@
+Language:
+The intent of the project is to make a proof-of-concept compiler for the Scheme variant.
+
+The procedures of the subset of R5RS to be considered will include:
+- cons
+- display
+- write
+- simple integer arithmetic
+- some operations on boolean values
+
+The syntactical constructs from R5RS to be supported are:
+- if
+- set!
+- lambda
+- define
+- (added later) let, if its easy enough to implement
+
+Calling convention:
+No longer modelling x64 call convention (too much work managing registers)
+
+Only use two inputs:
+arglist -> %rdi
+env -> %rsi
+
+Justification:
+Calling convention in x64 has %rdi as first argument and %rsi as second argument
+
+All Scheme functions internally become one of the following:
+SCM function(arglist,env)
+SCM function(arglist) /* env can be passed, but is ignored */
+
+The external functions become:
+SCM function(SCM arg1, SCM arg2, SCM ..., SCM arg2l, SCM arg1l) {
+	list = cons(arg1,cons(arg2,cons(...cons(arg2l,cons(arg1l,scm_null)))));
+	return function(list,NULL);
+}
+
+Apply is:
+SCM apply(SCM arglist) {
+	SCM closure = car(arglist);
+	SCM (*func)(SCM,SCM) = scm_closure_code(closure);
+	SCM env = scm_closure_env(closure);
+	SCM innerargs = car(cdr(arglist));
+	assert(cdr(cdr(arglist)) == scm_null);
+}
+
+Preprocessing can be done to convert functions to arglist equivalents (primitive operations are direct C calls):
+
+(define (fact n)
+  (define (rec n r)
+    (if (>= n 2)
+        (rec (- n 1) (* r n))
+        r))
+  (rec n 1))
+=>
+(define (fact . args)
+  (define n (car args))
+  (define (rec . args)
+    (define n (car args))
+    (define after-n (cdr args))
+    (define r (car after-n))
+    (if (>= n 2)
+        (rec (list (* r n))
+                   (- n 1)))
+        r))
+  (rec (list n 1)))
+
+defines can be gotten rid of in two steps, first un-sugaring:
+(define (list . args) args) => (define list (lambda args args))
+
+Then, define can be turned into a define followed by a set (where applicable):
+(define list (lambda args args)) => (define list) (set! list (lambda args args))
+
+defines can be lifted to the top of the appropriate function, before any execution, assigned locations on the stack, and subsequently removed, the definition becomes something like:
+(define (list . args) args) => (set! list (lambda args args))
+
+set! is trivial to implement after flattening, so this is done
+
+Translations:
+- if -> cmpl cond #f, jz false_branch, {true_branch}, jmp after_if, false_branch:, {false_branch}
+- set! -> movl
+- lambda -> closure conversion
+- define -> above
+- let -> uniquify, define at top, set! before evaluating expression, evaluate expression

@@ -10,7 +10,7 @@ The problem to be solved, in this project, is the construction of a compiler for
 - C header files (corresponding to shared objects)
 
 Examples of problem:
-Consider the following code from section 6.20.6 (Dynamic FFI) of the Guile 2.0.5 Manual [1]:
+Consider the following code from section 6.20.6 (Dynamic FFI) of the Guile manual [1]:
 
      (define-module (math bessel)
        #:use-module (system foreign)
@@ -25,7 +25,7 @@ Consider the following code from section 6.20.6 (Dynamic FFI) of the Guile 2.0.5
 
 Generalizing this, it takes four lines of source (define-module...define libm) per header file plus four lines of source times the number of procedures to be imported from C. For larger libraries, this is an obscene expense of programmer time. In addition, it requires dynamic linking at evaluation time, which may have additional expense.
 
-In the other direction, the primary method for invoking Guile functions from C appears to be invoking the guile shell scm_shell inside of scm_boot_guile, as in this example code from Section 5.2.2 of the Guile manual:
+In the other direction, the primary method for invoking Guile functions from C appears to be invoking the guile shell scm_shell inside of scm_boot_guile, as in this example code from Section 5.2.2 of the Guile manual [2]:
 
      static void
      inner_main (void *closure, int argc, char **argv)
@@ -53,4 +53,14 @@ Write C and Scheme applications that use the FFI system to write idiomatic code.
 Evaluation:
 Write equivalent functions with different FFI systems, comparing code readability, extensibility and maintainability. A significant reduction in length of code is also expected, so length may also be a useful metric.
 
-[1] Guile 2.0.5 manual TODO: get links
+Schedule:
+TARGET                  DEADLINE
+===============================================================================
+C Header Parser         week 1
+Base R5RS Compiler      week 1-2
+C FFI                   week 3-4
+C API                   week 3-4
+structs/unions          remaining time
+
+[1] Guile 2.0.11 Manual, Section 6.20.6: https://www.gnu.org/software/guile/manual/html_node/Dynamic-FFI.html#Dynamic-FFI
+[2] Guile 2.0.11 Manual, Section 5.2.2: https://www.gnu.org/software/guile/manual/guile.html#A-Sample-Guile-Main-Program 
