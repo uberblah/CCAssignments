@@ -1,5 +1,5 @@
-(use-modules (ice-9 match))
-(use-modules (srfi srfi-26))
+(use-modules (ice-9 match)
+             (srfi srfi-26))
 
 (define (lookup name alist)
   (define r (assoc name alist))
@@ -11,57 +11,6 @@
         ((null? l) '())
         (else (f l))))
 
-(define (define-desugar code)
-  (match code
-         (('define (name . vars) . rest)
-          `(define ,name
-             (lambda ,vars . ,(define-desugar rest))))
-         (('quote x) code)
-         ((a . b) (impmap define-desugar code))
-         (x x)))
-
-(define (define-set code)
-  (match code
-         (('define name expr) `(set! ,name ,(define-set expr)))
-         (('quote x) code)
-         ((a . b) (impmap define-set code))
-         (x x)))
-
-(define (simple-macro func)
-  (lambda (code) (macro-transform (func code))))
-
-(define define-set-macro
-  (simple-macro
-    (lambda (code)
-      (match code
-             (('define name expr) `(set! ,name ,expr))))))
-
-(define let-macro
-  (simple-macro
-    (lambda (code)
-      (match code
-             (('let ((name val) . rest) . body)
-              `(begin (set! ,name ,val) (let ,rest ,body)))
-             (('let () . rest) rest)))))
-
-(define (quote-macro code)
-  (cond ((pair? code) `(cons ,(quote-macro (car code))
-                            ,(quote-macro (cdr code))))
-        ((or (symbol? code) (null? code)) `(quote ,code))
-        (else code)))
-
-(define macros `((let . ,let-macro)
-                 (quote . ,quote-macro)
-                 (define . ,define-set-macro)))
-
-(define (macro-transform code)
-  (if (list? code)
-    (let ((trans (assoc (car code) macros)))
-      (if trans
-        ((cdr trans) code)
-        (map macro-transform code)))
-    code))
-
 (define (toplevel-unbegin code)
   (define (begin-rec code)
     (match code
@@ -71,6 +20,8 @@
 
 (define (unique-symbol sym)
   (make-symbol (symbol->string sym)))
+
+;(define unique-symbol id)
 
 (define (uniquify code bindings)
   (define (bound-vars code vars)
@@ -122,3 +73,23 @@
            ((a . b) (rec b (rec a vars)))
            (_ vars)))
   (rec code '()))
+
+(define (dearg code) ; turns all functions into functions with exactly one vararg
+  (define t (unique-symbol 'argtmp))
+  (match code
+         (('lambda (arg1 arg2) . body)
+           `(lambda ,t
+              (let ((,arg1 (car ,t))
+                    (,arg2 (car (cdr ,t)))) . ,body)))
+         (('lambda (arg) . body)
+          `(lambda ,t (let ((,arg (car ,t))) . ,body)))
+         (('lambda (arg1 arg2 . rest) . body)
+          (dearg `(lambda (,arg1 . ,t)
+                    (let ((,arg2 (car ,t))
+                          (,rest (cdr ,t))) . ,body))))
+         (('lambda (arg . vararg) . body)
+          `(lambda ,t
+             (let ((,arg (car ,t))
+                   (,vararg (cdr ,t))) . ,body)))
+         (('lambda () . body) `(lambda ,t . ,body))
+         (('lambda vararg . body) code)))
