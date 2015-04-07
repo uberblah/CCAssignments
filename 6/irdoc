@@ -1,0 +1,38 @@
+LISP IR
+    produced by lispify
+    available nodes...
+    
+    "stringliteral"
+    ['begin', [<nodes>]]
+    ['print', <toprint>]
+    ['const', <value>]
+    ['name', <name>]
+    ['+', <left>, <right>]
+    ['-', <negate>]
+    ['ifexp', <test>, <then>, <else>]
+    ['call', <func_name>]
+    ['lambda', [<args>], ['begin', [<body>]]]
+    ['return', <value>]
+    ['=', <dst>, <src>]
+    ['let', <bindtmp>, <bindvalue>, <body>]
+    ['list', <args>]
+    ['dict', <args>]
+    ['sub', <box>, <index>]
+    ['cond', <cond/action pairs>]
+    ['while', <test>, [<body>]]
+    ['class', <names>, <bases>, [<code>]]
+
+HL IR
+    produced by flatten
+    available nodes...
+    
+    ['=lit', <tgt>, ("lit", <value>)]
+    ['-', <tgt>, <src>]
+    ['=name', <tgt>, <name>]
+    ['call', <ret>, <funcname>, <args>...]
+    ['name=', <name>, <value>]
+
+LL IR is as direct a mapping to ASM as possible without losing expression
+    has an 'if' node
+    
+
