@@ -41,8 +41,8 @@
     (lambda (code)
       (match code
              (('let ((name val) . rest) . body)
-              `(begin (set! ,name ,val) (let ,rest ,body)))
-             (('let () . rest) rest)))))
+              `(begin (set! ,name ,val) (let ,rest . ,body)))
+             (('let () . rest) `(begin . ,rest))))))
 
 (define (quote-macro code)
   (cond ((pair? code) `(cons ,(quote-macro (car code))
