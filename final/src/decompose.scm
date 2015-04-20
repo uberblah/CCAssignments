@@ -57,28 +57,72 @@
 
 ;(define unique-symbol id)
 
-(define (uniquify code bindings)
-  (define (bound-vars code vars)
-    (define (bound-vars-body code vars)
-      (match code
-             ((('define name . _) . body)
-              (bound-vars-body body (cons name vars)))
-             (x vars)))
+(define (bound-vars code)
+  (define (bound-vars-body code vars)
+    (match code
+           ((('define name . _) . body)
+            (bound-vars-body body (cons name vars)))
+           (x vars)))
+  (define (rec code vars)
     (match code
            (('lambda (arg . argrest) . body)
-            (bound-vars `(lambda ,argrest . ,body)
-                        (cons arg vars)))
+            (rec `(lambda ,argrest . ,body)
+                 (cons arg vars)))
            (('lambda () . body)
-            (bound-vars body vars))
+            (rec body vars))
            (('lambda vararg . body)
-            (bound-vars body (cons vararg vars)))
+            (rec body (cons vararg vars)))
            (('let ((name . expr) . rest) . body)
-            (bound-vars `(let ,rest . ,body) (cons name vars)))
+            (rec `(let ,rest . ,body) (cons name vars)))
            (('let () . body)
-            (bound-vars body vars))
+            (rec body vars))
            (('quote . rest) code)
            (_ (bound-vars-body code vars))))
-  (define bound (bound-vars code '()))
+  (rec code '()))
+
+#|
+(define (free-vars code)
+  (define (used-vars code)
+    (define (rec code vars)
+      (match code
+             (('lambda _ . body)
+              (lset-difference eqv? (rec body vars) (bound-vars code))
+             (('let ((_ expr) . rest) . body)
+              (rec `(let ,rest . ,body) (rec expr vars)))
+             (('let () . body)
+              (rec body vars))
+             (('quote . _) vars)
+             (('define _ expr)
+              (rec expr vars))
+             ((a . b) (rec b (rec a vars)))
+             (a (if (symbol? a) (cons a vars) vars))))
+    (rec code '()))
+  (lset-difference eqv? (used-vars code) (bound-vars code))))
+|#
+
+(define (free-vars code)
+  (define (rec code vars)
+    (match code
+           (('lambda _ . body)
+            (lset-difference eqv? (rec body vars) (bound-vars code)))
+           (('let ((_ expr) . rest) . body)
+            (lset-difference eqv? (rec `(let ,rest . ,body)
+                                       (rec expr vars))
+                             (bound-vars code)))
+           (('let () . body)
+            (rec body vars))
+           (('quote . _) vars)
+           (('define _ expr)
+            (rec expr vars))
+           ((a . b) (rec b (rec a vars)))
+           (a (if (symbol? a) (cons a vars) vars))))
+  (lset-difference eqv? (rec code '()) (bound-vars code)))
+
+(define (unique-symbols syms)
+  (filter (compose not symbol-interned?) syms))
+
+(define (uniquify code bindings)
+  (define bound (bound-vars code))
   (define inner-bindings (map (lambda (x) (cons x (unique-symbol x))) bound))
   (define (uniquify-rec code bindings)
     (match code
@@ -92,9 +136,9 @@
                 (let ((v (lookup x bindings)))
                   (if v v x))
                 x))))
-  (impmap (cut uniquify-rec <> (append inner-bindings bindings)) code))
+  (map (cut uniquify-rec <> (append inner-bindings bindings)) code))
 
-(define (stack-vars code)
+(define (stack-vars body)
   (define (rec code vars)
     (match code
            ((('define name . expr) . rest)
@@ -106,7 +150,82 @@
            (('lambda _) vars)
            ((a . b) (rec b (rec a vars)))
            (_ vars)))
-  (rec code '()))
+  (rec body '()))
+
+(define (rebind code bindings)
+  (if (pair? code)
+    (impmap (cut rebind <> bindings) code)
+    (or (lookup code bindings) code)))
+
+#|
+(define (heapify func)
+  (define (heap-vars func)
+    (match code
+           (('lambda _ . body)
+            (free-vars code))
+           (('quote . _) '())
+           ((a . b) (lset-union eqv? (heap-vars a) (heap-vars b)))
+           (_ '())))
+  (define hv (heap-vars func))
+  (define env (unique-symbol 'environment))
+  (define (heapify-rec code)
+    (match code
+           (lambda 
+             ))))
+|#
+
+(define env-apply (unique-symbol 'env-apply))
+
+(define (heapify code)
+  (define (heap-vars func)
+    (match code
+           (('lambda _ . body)
+            (unique-symbols (free-vars code)))
+           (('quote . _) '())
+           ((a . b) (lset-union eqv? (heap-vars a) (heap-vars b)))
+           (_ '())))
+  (define (add-env code env)
+    (define (add-env-rec code vars)
+      (if (null? vars) code
+        (match code
+               (('lambda (env . vararg) . body)
+                (define newenv (unique-symbol 'env))
+                (define newbody
+                  `(let (((,car vars) (car ,newenv))) . ,body))
+                (add-env-rec `(lambda (,newenv . ,vararg) ,newbody))))))
+    (match code
+           (('lambda vararg . body)
+            (add-env-rec `(lambda (,(unique-symbol 'noenv) . ,vararg) . ,body)
+                         (reverse env)))))
+  (define (heapify-rec code heap-vars)
+    (match code
+           (('lambda vararg . body)
+            (define fv (unique-symbols (free-vars code)))
+            (define env (unique-symbol 'env))
+            `(let ((,env (list . ,fv)))
+               (,env-apply ,(add-env code fv) ,env)))
+           (('quote . _) code)
+           (('set! name expr)
+            (define hexpr (heapify expr))
+            (if (memv code heap-vars)
+              `(set-car! ,name ,hexpr))
+              `(set! ,name ,hexpr))
+           (('define name expr)
+            (define hexpr (heapify expr))
+            (if (memv code heap-vars)
+              `(define ,name (list ,hexpr))
+              `(define ,name ,hexpr)))
+           (('let ((name expr) . rest) . body)
+            (define hexpr (heapify expr))
+            (if (memv code heap-vars)
+              (heapify `(let ((,name (list ,hexpr))) . ,body))
+              (heapify `(let ((,name ,hexpr)) . ,body))))
+           (('let () . body)
+            `(let () . ,(heapify body)))
+           ((a . b)
+            (map (cut heapify-rec <> heap-vars) code))
+           (_ (if (memv code heap-vars) `(car ,code) code))))
+  (heapify-rec code '()))
 
 (define (dearg code) ; turns all functions into functions with exactly one vararg
   (define (genlet formals vararg body)
@@ -129,6 +248,15 @@
           (if (symbol? args) code
             (let ((t (unique-symbol 'argtmp)))
               `(lambda ,t ,(genlet args t body)))))))
+
+(define lambda-meta (unique-symbol 'lambda-meta))
+
+(define (lambda-proc func)
+  (define func-dearg (dearg func))
+  (define vararg (cadr func-dearg))
+  (define body (caddr func-dearg))
+  (define stack (stack-vars body))
+  `(,lambda-meta ,vararg ,stack . ,body))
 
 (define (atomic? expr)
   (or (not (pair? expr))
