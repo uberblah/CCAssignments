@@ -254,7 +254,7 @@
 (define (lambda-proc func)
   ;(define func-dearg (dearg func))
   (define vararg (cadr func))
-  (define body (caddr func))
+  (define body (cddr func))
   (define stack (cons vararg (stack-vars body)))
   `(,lambda-meta ,vararg ,stack ,body))
 

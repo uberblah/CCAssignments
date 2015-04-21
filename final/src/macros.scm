@@ -75,11 +75,11 @@
                  (letrec . ,let-macro)
                  (let* . ,let-macro)
                  (let . ,let-macro)
-                 (quote . ,quote-macro)))
-                 ;(define . ,define-set-macro)))
+                 (quote . ,quote-macro)
+                 (define . ,define-set-macro)))
 
 (define (macro-transform code)
-  (if (list? code)
+  (if (pair? code)
     (let ((trans (assoc (car code) macros)))
       (if trans
         ((cdr trans) code)
