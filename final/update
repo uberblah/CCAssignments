@@ -1,0 +1,9 @@
+Dakota Fisher and Miles Rufat-Latre
+
+Significant progress has been made on the Scheme compiler and it is nearly done.
+We are behind on the API and FFI, but we have determined additional constraints on the API and FFI.
+We will not write a parser but will utilize Guile's (read) function to parse Scheme code and an external program based on pycparser to parse C code into a list to be parsed using the same (read) function.
+The Scheme compiler will remain as simple as possible to minimize development time.
+No optimizations shall be done except for tail-call elimination, and GC will continue to not be used.
+The API and FFI implementation will be pushed to weeks 4 and 5 and structs and unions will be made into a stretch goal, but more data types will be supported.
+Variadic arguments in the FFI and API will not be done for simplicity, but x64 will be supported.
