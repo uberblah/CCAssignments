@@ -2,6 +2,8 @@
              (srfi srfi-1)
              (srfi srfi-26))
 
+(load "macros.scm")
+
 (define (fold-inorder kons knil tree)
   (define f (cut fold-inorder kons <> <>))
   (cond ((null? tree) knil)
@@ -80,26 +82,6 @@
            (_ (bound-vars-body code vars))))
   (rec code '()))
 
-#|
-(define (free-vars code)
-  (define (used-vars code)
-    (define (rec code vars)
-      (match code
-             (('lambda _ . body)
-              (lset-difference eqv? (rec body vars) (bound-vars code))
-             (('let ((_ expr) . rest) . body)
-              (rec `(let ,rest . ,body) (rec expr vars)))
-             (('let () . body)
-              (rec body vars))
-             (('quote . _) vars)
-             (('define _ expr)
-              (rec expr vars))
-             ((a . b) (rec b (rec a vars)))
-             (a (if (symbol? a) (cons a vars) vars))))
-    (rec code '()))
-  (lset-difference eqv? (used-vars code) (bound-vars code))))
-|#
-
 (define (free-vars code)
   (define (rec code vars)
     (match code
@@ -157,24 +139,8 @@
     (impmap (cut rebind <> bindings) code)
     (or (lookup code bindings) code)))
 
-#|
-(define (heapify func)
-  (define (heap-vars func)
-    (match code
-           (('lambda _ . body)
-            (free-vars code))
-           (('quote . _) '())
-           ((a . b) (lset-union eqv? (heap-vars a) (heap-vars b)))
-           (_ '())))
-  (define hv (heap-vars func))
-  (define env (unique-symbol 'environment))
-  (define (heapify-rec code)
-    (match code
-           (lambda 
-             ))))
-|#
-
 (define env-apply (unique-symbol 'env-apply))
+(define env-apply 'env-apply)
 
 (define (heapify code)
   (define (heap-vars func)
@@ -191,19 +157,21 @@
                (('lambda (env . vararg) . body)
                 (define newenv (unique-symbol 'env))
                 (define newbody
-                  `(let (((,car vars) (car ,newenv))) . ,body))
-                (add-env-rec `(lambda (,newenv . ,vararg) ,newbody))))))
+                  `(let ((,(car vars) (car ,newenv))
+                         (,env (cdr ,newenv))) . ,body))
+                (add-env-rec `(lambda (,newenv . ,vararg) ,newbody) (cdr vars))))))
     (match code
            (('lambda vararg . body)
-            (add-env-rec `(lambda (,(unique-symbol 'noenv) . ,vararg) . ,body)
+            (add-env-rec `(lambda (,(unique-symbol 'noenv) . ,vararg) . ,(map heapify body))
                          (reverse env)))))
   (define (heapify-rec code heap-vars)
     (match code
-           (('lambda vararg . body)
+           (('lambda _ . _)
             (define fv (unique-symbols (free-vars code)))
             (define env (unique-symbol 'env))
+            (define with-env (add-env code fv))
             `(let ((,env (list . ,fv)))
-               (,env-apply ,(add-env code fv) ,env)))
+               (,env-apply ,with-env ,env)))
            (('quote . _) code)
            (('set! name expr)
             (define hexpr (heapify expr))
@@ -218,16 +186,40 @@
            (('let ((name expr) . rest) . body)
             (define hexpr (heapify expr))
             (if (memv code heap-vars)
-              (heapify `(let ((,name (list ,hexpr))) . ,body))
-              (heapify `(let ((,name ,hexpr)) . ,body))))
+              `(let ((,name (list ,hexpr)))
+                 ,(heapify-rec `(let ,rest . ,body) heap-vars))
+              `(let ((,name ,hexpr))
+                 ,(heapify-rec `(let ,rest . ,body) heap-vars))))
            (('let () . body)
-            `(let () . ,(heapify body)))
+            `(let () . ,(heapify-rec body heap-vars)))
            ((a . b)
             (map (cut heapify-rec <> heap-vars) code))
            (_ (if (memv code heap-vars) `(car ,code) code))))
   (heapify-rec code '()))
 
-(define (dearg code) ; turns all functions into functions with exactly one vararg
+(define init (unique-symbol 'init))
+(define (lift code) ; code => code X lambdas
+  (match code
+         (('lambda args . body)
+          (define ltmp (unique-symbol 'lifted-lambda))
+          (define r (lift body))
+          (cons ltmp
+                (cons `(define ,ltmp (lambda ,args . ,(car r)))
+                      (cdr r))))
+         (('quote . _) (cons code '()))
+         ((a . b)
+          (define ra (lift a))
+          (define rb (lift b))
+          `((,(car ra) . ,(car rb)) . ,(append (cdr ra) (cdr rb))))
+         (_ (cons code '()))))
+
+(define (lift-toplevel code)
+  (match (lift code)
+         ((initcode . defs)
+          (cons `(,init (lambda ,(unique-symbol 'noarg) . ,initcode))
+                (map cdr defs)))))
+
+(define (dearg code) ; turns function into function with exactly one vararg
   (define (genlet formals vararg body)
     (define t (unique-symbol 'argtmp))
     (match formals
@@ -249,14 +241,22 @@
             (let ((t (unique-symbol 'argtmp)))
               `(lambda ,t ,(genlet args t body)))))))
 
+(define (deargify code)
+  (match code
+         (('lambda args . body)
+          (dearg `(lambda ,args . ,(deargify body))))
+         (('quote . _) code)
+         ((a . b) (impmap deargify code))
+         (_ code)))
+
 (define lambda-meta (unique-symbol 'lambda-meta))
 
 (define (lambda-proc func)
-  (define func-dearg (dearg func))
-  (define vararg (cadr func-dearg))
-  (define body (caddr func-dearg))
-  (define stack (stack-vars body))
-  `(,lambda-meta ,vararg ,stack . ,body))
+  ;(define func-dearg (dearg func))
+  (define vararg (cadr func))
+  (define body (caddr func))
+  (define stack (cons vararg (stack-vars body)))
+  `(,lambda-meta ,vararg ,stack ,body))
 
 (define (atomic? expr)
   (or (not (pair? expr))
@@ -266,67 +266,6 @@
   (or (atomic? expr)
       (and (atomic? (car expr))
            (simple? (cdr expr)))))
-
-#|
-(define (applyify code)
-  (define (applyify-proc code)
-    (define args
-    (fold-right (lambda (x y) `(cons ,(applyify x) ,y)) ''() (cdr code))
-  (match code
-         (('define name expr)
-          `(define ,name ,(applyify expr)))
-         (('lambda args expr)
-          (dearg `(lambda args ,(applyify expr))))
-         (('if . rest)
-          `(if . ,(map applyify rest)))
-         (('let (bspecs) . body)
-          `(let ,(map (lambda (x)
-                        `(,(car x) ,(applyify (cadr x))))
-                      bspecs) . ,(map applyify body)))
-         (('set! name expr)
-          `(set! ,name ,(applyify expr)))
-         (('begin exprs)
-          `(begin ,(map applyify exprs)))
-         (('apply proc args)
-          (map applyify code))
-         (('cons a b)
-          (if (and (symbol? a)
-                   (symbol? b))
-            code
-            (let ((t1 (unique-symbol 'cartmp))
-                  (t2 (unique-symbol 'cdrtmp)))
-              (applyify 
-         ((proc . args)  )))))))))
-|#
-
-#|
-(define (letflat-expr expr) ; flatten expressions into letflat form
-  (define (letflat-bspecs bspecs)
-    (map (lambda (spec) (cons (car spec)
-                              (letflat-expr (cadr spec))))
-         bspecs))
-  (match expr
-         (('let bspecs . body)
-          `(let ,(letflat-bspecs bspecs) . ,(letflat-body body)))
-         (('set! name expr)
-          `(set! ,name ,(letflat-expr expr)))
-         (('begin exprs)
-          `(begin ,(map letflat-expr exprs)))
-         (('if c t e)
-          `(if (letflat-expr c)
-             (letflat-expr t)
-             (letflat-expr e)))
-         (('define name expr)
-          (error "define in expression"))
-         (('quote . _) expr)
-         ((_ . _)
-          (define t (unique-symbol 'tmp))
-          `(let ((,t ,(map letflat-expr expr))) ,t))
-         (atom atom)))
-|#
-
-(define undefined (unique-symbol 'undefined))
-(define retval (unique-symbol 'retval))
 
 (define (compile-compound expr)
   (define (appfold expr nil)
@@ -355,38 +294,3 @@
              ((_ . _) (fold-right appfold `(() . ,before) expr)))))
   (reverse (rec expr '())))
 
-#|
-(define (delet expr)
-  (define (rec before expr)
-    (define (bspec-fold bspec before)
-      (write before)
-      (write bspec)
-      (append before `((set! ,(car bspec) ,(begin (delet (cdr bspec)))))))
-    ((match expr
-            (('let bspecs . body)
-             (write bspecs) (newline)
-             (rec (fold bspec-fold before bspecs))
-             `(begin . ,(delet body))))
-     (expr `(begin (begin . ,before) ,(delet expr)))))
-  (rec '() expr))
-|#
-
-#|
-  (match code
-         (('lambda (arg1 arg2) . body)
-           `(lambda ,t
-              (let ((,arg1 (car ,t))
-                    (,arg2 (car (cdr ,t)))) . ,body)))
-         (('lambda (arg) . body)
-          `(lambda ,t (let ((,arg (car ,t))) . ,body)))
-         (('lambda (arg1 arg2 . rest) . body) ; the only recursive call
-          (dearg `(lambda (,arg1 . ,t)
-                    (let ((,arg2 (car ,t))
-                          (,rest (cdr ,t))) . ,body))))
-         (('lambda (arg . vararg) . body)
-          `(lambda ,t
-             (let ((,arg (car ,t))
-                   (,vararg (cdr ,t))) . ,body)))
-         (('lambda () . body) `(lambda ,t . ,body))
-         (('lambda vararg . body) code))
-  |#
