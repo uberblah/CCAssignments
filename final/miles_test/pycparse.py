@@ -41,7 +41,7 @@ def listify(ast):
     elif isinstance(ast, Decl):
         l[0] = "decl"
     elif isinstance(ast, DeclList):
-        l[0] = "decllist"
+        l[0] = "listdecl"
     elif isinstance(ast, Default):
         l[0] = "default"
     elif isinstance(ast, DoWhile):
@@ -65,7 +65,7 @@ def listify(ast):
     elif isinstance(ast, FuncCall):
         l[0] = "call"
     elif isinstance(ast, FuncDecl):
-        l[0] = "declfun"
+        l[0] = "funcdecl"
     elif isinstance(ast, FuncDef):
         l[0] = "defun"
     elif isinstance(ast, Goto):
@@ -85,7 +85,7 @@ def listify(ast):
     elif isinstance(ast, ParamList):
         l[0] = "params"
     elif isinstance(ast, PtrDecl):
-        l[0] = "declptr"
+        l[0] = "ptrdecl"
     elif isinstance(ast, Return):
         l[0] = "return"
     elif isinstance(ast, Struct):
@@ -97,7 +97,7 @@ def listify(ast):
     elif isinstance(ast, TernaryOp):
         l[0] = "ternary"
     elif isinstance(ast, TypeDecl):
-        l[0] = "decltype"
+        l[0] = "typedecl"
     elif isinstance(ast, Typedef):
         l[0] = "typedef"
     elif isinstance(ast, Typename):
@@ -110,6 +110,10 @@ def listify(ast):
         l[0] = "while"
     else:
         return ast
+    attrs = []
+    for name in ast.attr_names:
+        attrs.append([name, getattr(ast, name)])
+    l.append(attrs)
     #each child is returned as a tuple containing name and value
     l += list(map(lambda t: listify(t[1]), ast.children()))
     return l
@@ -134,4 +138,18 @@ def printlists(lists):
         else:
             p(str(n) + ",")
     r(lists)
+
+def lisplists(lists, filename):
+    f = open(filename, "w")
+    def r(n):
+        if isinstance(n, list):
+            f.write("(")
+            for i in n:
+                r(i)
+            f.write(")")
+        else:
+            f.write(str(n))
+        f.write(" ")
+    r(lists)
+    f.close()
 
