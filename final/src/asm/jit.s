@@ -30,6 +30,7 @@ jit_const_func:
 
 jit_end:
 
+.global jit_copy
 jit_copy:
 pushq %rsi
 pushq %rdi
@@ -48,6 +49,7 @@ popq %rsi
 movq %rsi, (jit_const-jit_begin)(%rax)
 ret
 
+/*
 .global main
 main:
 movq $scm_write, %rdi
@@ -58,6 +60,7 @@ movq %rax, %rcx
 movq $0, %rax
 leaq (jit_const+2), %rdi
 jmp *%rcx
+*/
 
 str:
 .asciz "%d\n"

@@ -6,6 +6,15 @@
 
 typedef uint64_t SCM;
 
+extern SCM scm_apply(SCM f, SCM args);
+
+typedef struct scm_big {
+	uint64_t tag;
+	union {
+		SCM (*func)(SCM);
+	} data;
+} scm_big;
+
 SCM scm_null = 0x14;
 SCM scm_true = 0xC;
 SCM scm_false = 0x4;
@@ -69,6 +78,8 @@ void scm_write(SCM val) {
 			printf(")");
 			return;
 		}
+	} else if (scm_is_big(val) != scm_false) {
+		printf("BIG");
 	} else if (scm_is_int(val) != scm_false) {
 		printf("%d", val >> 3);
 	} else if (val == scm_null) {
