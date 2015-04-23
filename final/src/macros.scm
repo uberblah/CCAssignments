@@ -40,9 +40,9 @@
   (simple-macro
     (lambda (code)
       (match code
-             (('let ((name val) . rest) . body)
+             ((_ ((name val) . rest) . body)
               `(begin (set! ,name ,val) (let ,rest . ,body)))
-             (('let () . rest) `(begin . ,rest))))))
+             ((_ () . rest) `(begin . ,rest))))))
 
 (define (quote-macro code)
   (cond ((pair? code) `(cons ,(quote-macro (car code))
@@ -72,12 +72,14 @@
 
 (define macros `((and . ,and-macro)
                  (or . ,or-macro)
+                 (letrec . ,let-macro)
+                 (let* . ,let-macro)
                  (let . ,let-macro)
                  (quote . ,quote-macro)
                  (define . ,define-set-macro)))
 
 (define (macro-transform code)
-  (if (list? code)
+  (if (pair? code)
     (let ((trans (assoc (car code) macros)))
       (if trans
         ((cdr trans) code)
