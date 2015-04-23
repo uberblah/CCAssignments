@@ -140,7 +140,6 @@
     (or (lookup code bindings) code)))
 
 (define env-apply (unique-symbol 'env-apply))
-(define env-apply 'env-apply)
 
 (define (heapify code)
   (define (heap-vars func)
@@ -204,7 +203,7 @@
           (define ltmp (unique-symbol 'lifted-lambda))
           (define r (lift body))
           (cons ltmp
-                (cons `(define ,ltmp (lambda ,args . ,(car r)))
+                (cons `(,ltmp . (lambda ,args . ,(car r)))
                       (cdr r))))
          (('quote . _) (cons code '()))
          ((a . b)
@@ -216,30 +215,30 @@
 (define (lift-toplevel code)
   (match (lift code)
          ((initcode . defs)
-          (cons `(,init (lambda ,(unique-symbol 'noarg) . ,initcode))
-                (map cdr defs)))))
+          (cons `(,init . (lambda ,(unique-symbol 'noarg) . ,initcode))
+                defs))))
 
 (define (dearg code) ; turns function into function with exactly one vararg
   (define (genlet formals vararg body)
     (define t (unique-symbol 'argtmp))
     (match formals
            (() body)
-           ((x) `(let ((,x (car ,vararg))) . ,body))
+           ((x) `((let ((,x (car ,vararg))) . ,body)))
            ((x y)
-            `(let ((,x (car ,vararg))
-                   (,y (car (cdr ,vararg)))) . ,body))
+            `((let ((,x (car ,vararg))
+                   (,y (car (cdr ,vararg)))) . ,body)))
            ((x y . z)
-            `(let ((,x (car ,vararg))
+            `((let ((,x (car ,vararg))
                    (,t (cdr ,vararg)))
-               ,(genlet (cdr formals) t body)))
+               ,(genlet (cdr formals) t body))))
            ((x . y)
-            `(let ((,x (car ,vararg))
-                   (,y (cdr ,vararg))) . ,body))))
+            `((let ((,x (car ,vararg))
+                   (,y (cdr ,vararg))) . ,body)))))
   (match code
          (('lambda args . body)
           (if (symbol? args) code
             (let ((t (unique-symbol 'argtmp)))
-              `(lambda ,t ,(genlet args t body)))))))
+              `(lambda ,t . ,(genlet args t body)))))))
 
 (define (deargify code)
   (match code
@@ -248,15 +247,6 @@
          (('quote . _) code)
          ((a . b) (impmap deargify code))
          (_ code)))
-
-(define lambda-meta (unique-symbol 'lambda-meta))
-
-(define (lambda-proc func)
-  ;(define func-dearg (dearg func))
-  (define vararg (cadr func))
-  (define body (cddr func))
-  (define stack (cons vararg (stack-vars body)))
-  `(,lambda-meta ,vararg ,stack ,body))
 
 (define (atomic? expr)
   (or (not (pair? expr))
@@ -291,6 +281,7 @@
               (match (rec c before)
                      ((a . b)
                       `((if ,a . ,(map compile-compound branches)) . ,b))))
+             (('quote . _) code)
              ((_ . _) (fold-right appfold `(() . ,before) expr)))))
   (reverse (rec expr '())))
 

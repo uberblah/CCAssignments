@@ -20,7 +20,7 @@
       (match code
              ((('define name expr) . rest)
               (body-rec rest (cons (list name expr) specs)))
-             (_ `(letrec ,(reverse specs) ,(map undef code)))))
+             (_ `(letrec ,(reverse specs) . ,(map undef code)))))
     (body-rec code '()))
   (match code
          (('quote . _) code)

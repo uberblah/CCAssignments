@@ -6,8 +6,8 @@
 
 typedef uint64_t SCM;
 
-SCM scm_null = 0xC;
-SCM scm_true = 0x5;
+SCM scm_null = 0x14;
+SCM scm_true = 0xC;
 SCM scm_false = 0x4;
 
 SCM scm_bool2scm(bool val) {
