@@ -196,11 +196,10 @@
            (_ (if (memv code heap-vars) `(car ,code) code))))
   (heapify-rec code '()))
 
-(define init (unique-symbol 'init))
 (define (lift code) ; code => code X lambdas
   (match code
          (('lambda args . body)
-          (define ltmp (unique-symbol 'lifted-lambda))
+          (define ltmp (unique-symbol 'lifted_lambda))
           (define r (lift body))
           (cons ltmp
                 (cons `(,ltmp . (lambda ,args . ,(car r)))
@@ -215,7 +214,7 @@
 (define (lift-toplevel code)
   (match (lift code)
          ((initcode . defs)
-          (cons `(,init . (lambda ,(unique-symbol 'noarg) . ,initcode))
+          (cons `(init . (lambda ,(unique-symbol 'noarg) . ,initcode))
                 defs))))
 
 (define (dearg code) ; turns function into function with exactly one vararg
