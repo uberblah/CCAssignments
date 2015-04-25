@@ -45,10 +45,12 @@
              ((_ () . rest) `(begin . ,rest))))))
 
 (define (quote-macro code)
-  (cond ((pair? code) `(cons ,(quote-macro (car code))
-                            ,(quote-macro (cdr code))))
-        ((or (symbol? code) (null? code)) `(quote ,code))
-        (else code)))
+  (define (rec code)
+    (cond ((pair? code) `(cons ,(rec (car code))
+                               ,(rec (cdr code))))
+          ((or (symbol? code) (null? code)) `(quote ,code))
+          (else code)))
+  (rec (cadr code)))
 
 (define and-macro
   (simple-macro
