@@ -39,18 +39,6 @@ TYPE STRUCTURES
 'float32
 'float64
 
-evaluate typedefs and frikkin everything all at once, IN A SINGLE PASS!
-
-NOTES
-The "decl" node has the name of the var in its attributes, as "name"
-The "decl" node holds storage modifiers, as "storage"
-The "typedecl" node holds the qualifiers of a declaration, as "quals"
-The "idtype" node holds base types in its attributes, as "names"
-The "funcdecl" node always appears inside a "decl" node, to be unpacked
-The "funcdecl" node has subnode "params", where each child is a "decl"
-The return type of a "funcdecl" is stored in its internal "typedecl"
-The "funcdef" function wraps a "decl" and "compound": shuck for "decl"
-
 POSSIBLE STRUCTURES IN INPUT
 Decl
     TypeDecl
@@ -210,7 +198,7 @@ Decl
                 TypeDecl
                     IdentifierType
         TypeDecl
-            Struct: no attributes
+            Struct
                 Decl
                     TypeDecl
                         IdentifierType
@@ -218,26 +206,202 @@ Decl
                     TypeDecl
                         IdentifierType
 
+DeclChild ::= FuncDecl
+              ArrayDecl
+              PtrDecl
+              TypeDecl
+              Struct
+              Union
 
+Decl
+    DeclChild
+    
+PtrDecl
+    DeclChild
+
+ArrayDecl
+    DeclChild
+    Constant
+
+FuncDecl
+    ParamList
+        Decl [0 or more]
+    DeclChild
+
+TypeDecl
+    -
+    Struct
+    Union
+    IdentifierType
+
+Struct
+    Decl [0 or more]
+
+Union
+    Decl [0 or more]
+
+Typedef
+    DeclChild
+
+FuncDef
+    Decl
+        FuncDecl
+    Compound
+        ...
+
+TOPLEVEL...
+    DECL
+    TYPEDEF
+    FUNCDEF
 |#
 
-(define (import-c-ast filename)
+; import lisp code from a file
+(define (loadfile filename)
     (read (open-input-file filename))
 )
 
-(define (alist-get alist key)
-    (car (filter (lambda (x) (= (car x) key))))
+; get the raw declaration list from a whole-file c-ast
+(define (c-ast-getrawdecls c-ast) (cdr (cdr c-ast)))
+
+; get the attributes of a c-ast node
+(define (c-ast-getattrs c-ast) (cadr c-ast))
+
+; get the type of a c-ast node
+(define (c-ast-gettype c-ast)
+    (car c-ast)
 )
 
-(define (c-ast-getattr c-ast name)
-    (alist-get (cadr alist) name)
-)
+; get the value associated with a key in an alist
+(define (alget key lst)
+    (cadr (car (filter
+        (lambda (x) (eq? (car x) key))
+        lst
+))))
 
+; get the children of a c-ast node
 (define (c-ast-children c-ast)
     (cdr (cdr c-ast))
 )
 
-(define (c-ast-eval c-ast)
-    
+; use a list as input to the specified state machine
+(define (smachine tf st ls)
+    (if (eq? ls '())
+        st
+        (smachine tf (tf st (car ls)) (cdr ls))
+))
+
+; apply to val a function from tbl that matches (gkey val)
+(define (mapdo tbl val gkey)
+    ((alget (gkey val) tbl) val)
 )
+
+; append a single item to a list
+(define (append-one lst item)
+    (append lst (list item))
+)
+
+; a map function that applies over the values in an alist
+(define (alist-map fn alist)
+    (map
+        (lambda (x)
+            (list (car x) (fn (cadr x)))
+        )
+        alist
+))
+
+; evaluate and return a non-toplevel type
+(define (c-ast-subeval item)
+    ; a map for evaluating actual type items
+    (define c-ast-submap '(
+        ('ptrdecl (lambda (x)
+             ; pointed type
+            `(ptr ,(c-ast-subeval (car (c-ast-children x))))
+        ))
+        ('arraydecl (lambda (x)
+             ; pointed type, and we don't care about capacity
+            `(ptr ,(c-ast-subeval (car (c-ast-children x))))
+        ))
+        ('funcdecl (lambda (x)
+           `(func
+                ; parameters
+               ,(map c-ast-subeval 
+                    (c-ast-children (car (c-ast-children x)))
+                )
+                ; return type
+               ,(c-ast-subeval (cadr (c-ast-children x)))
+            )
+        ))
+        ('typedecl (lambda (x)
+            ; just skip this kind of node, it's pretty useless
+            (c-ast-subeval (car (c-ast-children x)))
+        ))
+        ('struct (lambda (x)
+           `(struct
+               ,(map ; build a dictionary of the members of the struct
+                    (lambda (y)
+                        (define name (alget 'name (c-ast-getattrs y)))
+                        (list name
+                            (c-ast-subeval (car (c-ast-children y)))
+                        )
+                    )
+                    (c-ast-children x)
+                )
+            )
+        ))
+        ('union (lambda (x)
+           `(union
+               ,(map ; build a dictionary of the members of the union
+                    (lambda (y)
+                        (define name (alget 'name (c-ast-getattrs y)))
+                        (list name
+                            (c-ast-subeval (car (c-ast-children y)))
+                        )
+                    )
+                    (c-ast-children x)
+                )
+            )
+        ))
+    ))
+    (mapdo c-ast-submap item (c-ast-gettype item))
+)
+
+; the state machine for processing declarations from a c-ast
+(define (c-ast-smachine st item)
+    (define (decl-mapeval item)
+        (define (decl-eval item)
+            (c-ast-subeval (car (c-ast-children item)))
+        )
+        (define (defun-eval item)
+            ; should call decl-eval on a child node
+            (decl-eval (car (c-ast-children item)))
+        )
+        (define decl-evalmap '( ; this is a map from toplevel nodes
+            ('decl    decl-eval)
+            ('typedef decl-eval)
+            ('funcdef defun-eval)
+        ))
+        (mapdo decl-evalmap item c-ast-gettype)
+    )
+    (define (mkstate td out) (cons td out))
+    (define typedefs (car st))
+    (define output (cdr st))
+    (define results (decl-mapeval item))
+    (define type (c-ast-gettype item))
+    (define name (alget 'name (c-ast-getattrs item)))
+    (if (eq? type 'typedef)
+       `(
+           ,(append-one typedefs (list name results))
+            output
+        )
+       `(
+            typedefs
+           ,(append-one output (list name results))
+        )
+    )
+)
+
+; a driver to run the c-ast-smachine on a c-ast
+(define (c-ast-getdecls c-ast)
+    (smachine c-ast-smachine '(() . ()) (c-ast-getrawdecls c-ast)
+))
 
