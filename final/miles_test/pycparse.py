@@ -1,5 +1,4 @@
-#!/usr/bin/python2
-
+import sys
 from pycparser import c_parser, c_ast
 from pycparser.c_ast import *
 
@@ -152,4 +151,8 @@ def lisplists(lists, filename):
         f.write(" ")
     r(lists)
     f.close()
+
+ast = pycparse(sys.argv[1])
+lst = listify(ast)
+lisplists(lst, sys.argv[2])
 
