@@ -50,6 +50,16 @@
             #t
             (one-of item (cdr lst))
 )))
+(define (sappend s1 s2)
+    (string->symbol (string-append (symbol->string s1) (symbol->string s2)))
+)
+(define (find-in item lst)
+    (if (eq? lst '())
+       '()
+        (if (eq? item (car lst))
+            item
+            (find-in item (cdr lst))
+)))
 
 ; c ast manipulation functions
 (define (ast-type ast) (car ast))
@@ -83,12 +93,15 @@
         ))))
         (rec astlist '(() ()))
     )
-    (define (dofile x) (cadr (get-alldecls (ast-ch x))))
+    (define (dofile x) (get-alldecls (ast-ch x)))
     (define (dodecl x)
         (if (one-of (caar (ast-ch x)) '(struct union))
             (list
                 (list (list
-                   `(,(caar (ast-ch x)) ,(ast-attr (car (ast-ch x)) 'name))
+                   `(
+                       ,(caar (ast-ch x))
+                       ,(ast-attr (car (ast-ch x)) 'name)
+                    )
                     (rec (car (ast-ch x)))
                 ))
                '()
@@ -122,13 +135,10 @@
            `(func ,(rec (car (ast-ch x))) ())
            `(func
                ,(rec (cadr (ast-ch x)))
-                ; map over the children of the first child
                ,(cadr (get-alldecls (ast-ch (car (ast-ch x)))))
-               ;,(map rec (ast-ch (car (ast-ch x))))
     )))
     (define (dotypedecl x) (rec (car (ast-ch x))))
     (define (dostruct x) `(struct ,(cadr (get-alldecls (ast-ch x)))))
-    ;(define (dostruct x) ('struct (map rec (ast-ch x))))
     (define (dounion x) (cons 'union (cdr (dostruct x))))
     (define (doidtype x) `(value ,(ast-attr x 'names)))
     (define c-declmap `(
@@ -150,7 +160,7 @@
 (define (c-getdecls1 x) (c-getdecls x '()))
 (define (c-loaddecls hdr)
     (define ast (c-loadheader hdr))
-    (c-getdecls1 ast)
+    (cadr (c-getdecls1 ast))
 )
 
 ; library processing functions
