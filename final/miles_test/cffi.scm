@@ -34,6 +34,15 @@
     ))))
     (rec lst item 0)
 )
+(define (nth lst n)
+    (if (eq? n 1)
+        (car lst)
+        (nth (cdr lst) (- n 1))
+    )
+)
+(define (pappend l1 l2)
+   `(,(append (car l1) (car l2)) ,(append (cadr l1) (cadr l2)))
+)
 
 ; c ast manipulation functions
 (define (ast-type ast) (car ast))
@@ -55,35 +64,62 @@
 )
 (define (c-getdecls ast tdefs)
     (define (rec ast) (c-getdecls ast tdefs))
+    (define (get-alldecls astlist)
+        (define (rec astlist state)
+            (if (eq? astlist '())
+                state
+                (rec
+                    (cdr astlist)
+                    (pappend
+                        state
+                        (c-getdecls (car astlist) (car state))
+        ))))
+        (rec astlist '(() ()))
+    )
+    (define (dofile x) (cadr (get-alldecls (ast-ch x))))
     (define (dodecl x)
         (list
            '() ; no typedefs
-            (list ; one declaration
+            (list (list ; one declaration
                 (ast-attr x 'name) ; by the name found in this decl node
                 (rec (car (ast-ch x))) ; with the type given by our recursion
-    )))
+    ))))
+    (define (dotypename x)
+        (list
+           '()
+            (list (list
+               '()
+                (rec (car (ast-ch x)))
+    ))))
     (define (dotypedef x)
         (list
-            (list
+            (list (list
                 (ast-attr x 'name)
                 (rec (car (ast-ch x)))
-            )
+            ))
            '()
     ))
     (define (dodefun x) (rec (car (ast-ch x))))
-    (define (doptrdecl x) ('ptr (rec (car (ast-ch x)))))
+    (define (doptrdecl x) `(ptr ,(rec (car (ast-ch x)))))
     (define (doarraydecl x) (doptrdecl x))
     (define (dofuncdecl x)
         (if (eq? (cdr (ast-ch x)) '())
-            ('func (rec (car (ast-ch x))) '())
-            ('func (rec (cadr (ast-ch x))) (map rec (car (ast-ch x))))
-    ))
+           `(func ,(rec (car (ast-ch x))) ())
+           `(func
+               ,(rec (cadr (ast-ch x)))
+                ; map over the children of the first child
+               ,(cadr (get-alldecls (ast-ch (car (ast-ch x)))))
+               ;,(map rec (ast-ch (car (ast-ch x))))
+    )))
     (define (dotypedecl x) (rec (car (ast-ch x))))
-    (define (dostruct x) ('struct (map rec (ast-ch x))))
+    (define (dostruct x) `(struct ,(cadr (get-alldecls (ast-ch x)))))
+    ;(define (dostruct x) ('struct (map rec (ast-ch x))))
     (define (dounion x) (cons 'union (cdr (dostruct x))))
-    (define (doidtype x) ('value (ast-attr x 'names)))
+    (define (doidtype x) `(value ,(ast-attr x 'names)))
     (define c-declmap `(
+        (file ,dofile)
         (decl ,dodecl)
+        (typename ,dotypename)
         (typedef ,dotypedef)
         (defun ,dodefun)
         (ptrdecl ,doptrdecl)
@@ -96,7 +132,11 @@
     ))
     (ado c-declmap ast-type ast)
 )
+(define (c-getdecls1 x) (c-getdecls x '()))
 (define (c-loaddecls hdr)
+    (define ast (c-loadheader hdr))
+    (c-getdecls1 ast)
+#|
     (define ast (c-loadheader hdr))
     (define (mkstate typedefs decls) (list typedefs decls))
     (define (gtdefs state) (car state))
@@ -110,6 +150,7 @@
         (appstate state results)
     )
     (fold-right thefold (mkstate '() '()) (ast-ch ast))
+|#
 )
 
 ; library processing functions
