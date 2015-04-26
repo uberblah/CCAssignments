@@ -43,6 +43,13 @@
 (define (pappend l1 l2)
    `(,(append (car l1) (car l2)) ,(append (cadr l1) (cadr l2)))
 )
+(define (one-of item lst)
+    (if (eq? lst '())
+        #f
+        (if (eq? item (car lst))
+            #t
+            (one-of item (cdr lst))
+)))
 
 ; c ast manipulation functions
 (define (ast-type ast) (car ast))
@@ -78,12 +85,20 @@
     )
     (define (dofile x) (cadr (get-alldecls (ast-ch x))))
     (define (dodecl x)
-        (list
-           '() ; no typedefs
-            (list (list ; one declaration
-                (ast-attr x 'name) ; by the name found in this decl node
-                (rec (car (ast-ch x))) ; with the type given by our recursion
-    ))))
+        (if (one-of (caar (ast-ch x)) '(struct union))
+            (list
+                (list (list
+                   `(,(caar (ast-ch x)) ,(ast-attr (car (ast-ch x)) 'name))
+                    (rec (car (ast-ch x)))
+                ))
+               '()
+            )
+            (list
+               '()
+                (list (list
+                    (ast-attr x 'name)
+                    (rec (car (ast-ch x)))
+    )))))
     (define (dotypename x)
         (list
            '()
@@ -136,21 +151,6 @@
 (define (c-loaddecls hdr)
     (define ast (c-loadheader hdr))
     (c-getdecls1 ast)
-#|
-    (define ast (c-loadheader hdr))
-    (define (mkstate typedefs decls) (list typedefs decls))
-    (define (gtdefs state) (car state))
-    (define (gdecls state) (cadr state))
-    (define (appstate s1 s2) (mkstate
-        (append (gtdefs s1) (gtdefs s2))
-        (append (gdecls s1) (gdecls s2))
-    ))
-    (define (thefold state item)
-        (define results (c-getdecls item (gtdefs state)))
-        (appstate state results)
-    )
-    (fold-right thefold (mkstate '() '()) (ast-ch ast))
-|#
 )
 
 ; library processing functions
