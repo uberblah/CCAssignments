@@ -10,9 +10,7 @@ extern SCM scm_apply(SCM f, SCM args);
 
 typedef struct scm_big {
 	uint64_t tag;
-	union {
-		SCM (*func)(SCM);
-	} data;
+	void *payload;
 } scm_big;
 
 SCM scm_null = 0x14;
@@ -42,6 +40,13 @@ SCM scm_is_pair(SCM val) {
 	return scm_bool2scm((val & 0x7) == 0x2);
 }
 
+SCM scm_is_null(SCM val) {
+	if (val == scm_null)
+		return scm_true;
+	else
+		return scm_false;
+}
+
 SCM scm_cons(SCM car, SCM cdr) {
 	uint64_t *result = malloc(16);
 	*result = car;
@@ -50,12 +55,12 @@ SCM scm_cons(SCM car, SCM cdr) {
 }
 
 SCM scm_car(SCM val) {
-	assert(scm_is_pair(val));
+	assert(scm_is_pair(val) != scm_false);
 	return *((uint64_t *)(val&~0x7));
 }
 
 SCM scm_cdr(SCM val) {
-	assert(scm_is_pair(val));
+	assert(scm_is_pair(val) != scm_false);
 	return *(((uint64_t *)(val&~0x7))+1);
 }
 
