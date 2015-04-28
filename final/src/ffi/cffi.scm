@@ -192,3 +192,7 @@
     |#
 )
 
+(define (c-hdr2decls hdr out)
+    
+)
+
