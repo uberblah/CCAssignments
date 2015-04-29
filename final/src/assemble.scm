@@ -82,6 +82,11 @@
 (define (assemble-block block locs)
   (apply append (map (cut assemble-cmd <> locs) block)))
 
+(define (assemble-block-tail block locs cleanup)
+  (define rblock (reverse block))
+  (append (assemble-block (reverse (cdr rblock)) locs)
+          (assemble-cmd-tail (car rblock) locs cleanup)))
+
 (define (asm-get-loc name locs)
   (cond ((integer? name) (format #f "$~a" (* 8 name)))
         ((boolean? name) (if name "$12" "$4"))
@@ -104,6 +109,14 @@
             (movq ,(asm-get-loc (car cmd) locs) "%rsi")
             (call "scm_applyr"))))
 
+(define (assemble-apply-tail cmd locs cleanup)
+  (match (reverse (assemble-apply cmd locs))
+         ((call . rest)
+          ;(write cleanup) (newline)
+          ;(write rest) (newline)
+          ;(write (reverse (append '((jmp "scm_applyr")) cleanup rest)))
+          (reverse (append '((jmp "scm_applyr")) cleanup rest)))))
+
 (define (assemble-cmd cmd locs)
   (match cmd
          (('set! name innercmd)
@@ -112,8 +125,7 @@
          (('if c t e)
           (let* ((thentmp (unique-symbol 'ifthen))
                  (elsetmp (unique-symbol 'ifelse))
-                 (endtmp (unique-symbol 'endtmp))
-                 (rec (cut assemble-cmd <> locs)))
+                 (endtmp (unique-symbol 'endtmp)))
             (append (assemble-cmd c locs)
                     `((cmpq ,(asm-get-loc #f locs) "%rax")
                       (jz ,elsetmp)
@@ -141,10 +153,36 @@
           `((movq ,(asm-get-loc x locs) "%rdi")
             (movq ,(asm-get-loc y locs) "%rsi")
             (call "scm_cons")))
+         (('set-car! x y)
+          `((movq ,(asm-get-loc x locs) "%rdi")
+            (movq ,(asm-get-loc y locs) "%rsi")
+            (call "scm_set_car")))
+         (('set-cdr! x y)
+          `((movq ,(asm-get-loc x locs) "%rdi")
+            (movq ,(asm-get-loc y locs) "%rsi")
+            (call "scm_set_cdr")))
          (('begin . rest)
           (append (map (cut assemble-cmd <> locs) rest)))
          ((_ . _) (assemble-apply cmd locs))
          (_ `((movq ,(asm-get-loc cmd locs) "%rax")))))
+
+(define (assemble-cmd-tail cmd locs cleanup)
+  (match cmd
+         (('if c t e)
+          (let* ((thentmp (unique-symbol 'ifthen))
+                 (elsetmp (unique-symbol 'ifelse)))
+            (append (assemble-cmd c locs)
+                    `((cmpq ,(asm-get-loc #f locs) "%rax")
+                      (jz ,elsetmp)
+                      (label ,thentmp))
+                    (assemble-block-tail t locs cleanup)
+                    `((label ,elsetmp))
+                    (assemble-block-tail e locs cleanup))))
+         (_ 
+          (define spec-comm '(quote env_apply car cdr cons set! set-car! set-cdr! begin))
+          (if (or (not (pair? cmd)) (memv (car cmd) spec-comm))
+            (append (assemble-cmd cmd locs) cleanup '((ret)))
+            (assemble-apply-tail cmd locs cleanup)))))
 
 (define (assemble-lambda lamb locs)
   (match lamb
@@ -154,11 +192,13 @@
                            (cons var (format #f "~a(%rsp)" (* slot 8))))
                          (cons vararg stack) (iota (1+ (length stack))))
                     locs))
+          (define cleanup `((addq ,(format #f "$~a" (* 8 (1+ (length stack)))) "%rsp")))
           (append `((addq ,(format #f "$-~a" (* 8 (1+ (length stack)))) "%rsp")
                     (movq "%rdi" ,(asm-get-loc vararg newlocs)))
-                  (assemble-block code newlocs)
-                  `((addq ,(format #f "$~a" (* 8 (1+ (length stack)))) "%rsp")
-                    (ret))))))
+                  (assemble-block-tail code newlocs cleanup)
+                  ;cleanup
+                  ;'((ret))
+                  ))))
 
 (define (assemble-prog prog)
   (define reprog (rename-symbols prog))
@@ -228,3 +268,8 @@
     (define a (lcons 5 6))
     (write (lcar a))
     (write (lcdr a))))
+(define test4
+  '((define (rec) (rec))
+    (rec)))
+
+; cc -g test9.s import.c asm/scm.c asm/jit.s asm/scm.s && gdb a.out
