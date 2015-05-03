@@ -3,6 +3,8 @@
 
 (use-modules (ice-9 pretty-print))
 (use-modules (ice-9 format))
+(use-modules (ice-9 match))
+(use-modules (srfi srfi-26))
 
 ; general utilities
 (define (loadscm filename)
@@ -75,11 +77,87 @@
             item
             (find-in item (cdr lst))
 )))
-(define (dappend delim)
-    (lambda (x y) (string-append x delim y))
+
+#|
+
+<cbret> scm_cb_<name><argid>(SCM args)
+{
+    <cbtype> f = scm_car(args);
+    (if noargs
+        args = scm_null;
+        args = scm_cdr args
+    )
+    return scm_scm2<
+}
+
+int import_this(float, int(*)(double, int))
+
+void scm_initifnotinited()
+{
+    if(!scm_iscurrentlyinited) scm_init();
+}
+
+int scm_cb_<funcname>_1(double arg1, SCM sarg)
+{
+    scm_initifnotinited();
+    f = scm_car(sarg);
+    int arg2 = scm_cdr(sarg);
+    SCM arglist = scm_null;
+    arglist = scm_cons(scm_int2scm(arg2), arglist);
+    arglist = scm_cons(scm_double2scm(arg1), arglist);
+    return scm_scm2int(scm_apply(f, arglist));
+}
+
+SCM scm_import_<funcname>(SCM args)
+{
+    SCM arg1 = scm_<arg1t>2scm(scm_car(args));
+    args = scm_cdr(args);
+    SCM arg2 = scm_env_apply(scm_cb_import_this_0, scm_car(args));
+    args = scm_cdr(args);
+    return scm_int2scm(import_this(arg1, arg2));
+}
+
+|#
+
+(define (node-type node) (car node))
+(define (func-args func) (caddr func))
+(define (func-ret func) (cadr func))
+(define (ptr-tgt ptr) (cadr ptr))
+(define (scmisptr? type) (eq? (car type) 'ptr))
+(define (scmtocname type name)
+    (match type
+        (('ptr ('func ret args))
+            (string-append
+                (scmtoctype ret)
+                "(*" name ")("
+                (string-join (map scmtoctype args) ",")
+                ")"
+        ))
+        (('ptr _) (if (string-null? name)
+            "void*"
+            (string-append "void* " name)
+        ))
+        (_ (if (string-null? name)
+            (symbol->string type)
+            (string-append (symbol->string type) name)
+))))
+(define (scmtoctype type) (scmtocname type ""))
+(define (scmimport-conv fname type argn)
+    (let ((argn (string->number argn)))
+        (match type
+            (('ptr ('func ret args))
+                (string-append argn "=scm_env_apply(scm_cb_" fname "_" argn
+                               ",scm_car(args));\nargs=scm_cdr(args);")
+            )
+            (('ptr _) argn "=scm_ptr2scm(scm_car(args));\nargs=scm_cdr(args);")
+            (_ (string-append argn "=scm_" type 
+                                    "2scm(scm_car(args));\nargs=scm_cdr(args);"))
+)))
+(define (scmimport-header fname type)
+    
 )
 
-; END GOAL: TO PRODUCE A C FILE CONTAINING WRAPPERS FOR ALL DECLARED ITEMS
+#|
 (define scmheader "#include \"scm.h\"\n")
 
 (define cmd (command-line))
@@ -92,7 +170,7 @@
     
 )
 (define (dovalue node name)
-
+    
 )
 (define (dotopfunc node name)
     (define ret (cadr node))
@@ -111,8 +189,7 @@
             (if (eq? type 'func)
                 (dofunc node name)
                 (dovalue node name)
-            )
-        )
+        ))
         (define (decl->str decl)
             (define name (car decl))
             (define value (cadr decl))
@@ -120,10 +197,10 @@
             (if (eq? type 'func)
                 (dotopfunc node name)
                 (dotopvalue node name)
-            )
-        )
+        ))
         (decl->str decl)
     )
     (map getwrap decls)
 )
 
+|#

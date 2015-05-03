@@ -43,4 +43,3 @@ union onion
 extern onion*(*acomplexfunc)(void(*afunctype)(int,int), onion*);
 struct{int a; int b;} retsastruct(int a);
 
-

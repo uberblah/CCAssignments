@@ -137,7 +137,7 @@
            `(func ,(rec (car (ast-ch x))) ())
            `(func
                ,(rec (cadr (ast-ch x)))
-               ,(cadr (get-alldecls (ast-ch (car (ast-ch x)))))
+               ,(map cadr (cadr (get-alldecls (ast-ch (car (ast-ch x))))))
     )))
     (define (dotypedecl x) (rec (car (ast-ch x))))
     (define (dostruct x) `(struct
