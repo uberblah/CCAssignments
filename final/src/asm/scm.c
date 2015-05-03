@@ -3,19 +3,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+#include "scm.h"
 
-typedef uint64_t SCM;
-
-extern SCM scm_apply(SCM f, SCM args);
-
-typedef struct scm_big {
-	uint64_t tag;
-	void *payload;
-} scm_big;
-
-SCM scm_null = 0x14;
-SCM scm_true = 0xC;
-SCM scm_false = 0x4;
+const SCM scm_null = 0x14;
+const SCM scm_true = 0xC;
+const SCM scm_false = 0x4;
 
 SCM scm_bool2scm(bool val) {
 	if (val)
