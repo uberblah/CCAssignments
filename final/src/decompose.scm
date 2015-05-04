@@ -3,6 +3,7 @@
              (srfi srfi-26))
 
 (load "macros.scm")
+(load "vset.scm")
 
 (define (fold-inorder kons knil tree)
   (define f (cut fold-inorder kons <> <>))
@@ -101,7 +102,7 @@
   (lset-difference eqv? (rec code '()) (bound-vars code)))
 
 (define (unique-symbols syms)
-  (filter (compose not symbol-interned?) syms))
+  (uniq (filter (compose not symbol-interned?) syms)))
 
 (define (uniquify code bindings)
   (define bound (bound-vars code))
