@@ -5,6 +5,17 @@
 (use-modules (ice-9 format))
 (use-modules (ice-9 match))
 (use-modules (srfi srfi-26))
+(use-modules (srfi srfi-1))
+
+#|
+    SCM scm_import_*(SCM args)
+    {
+        //first argument is the C function
+        //the remaining arguments must be converted and passed into the func
+    }
+    
+    to produce a callable C function, we say scm_env_apply(thefunc, a function that converts the argument list 
+|#
 
 ; general utilities
 (define (loadscm filename)
@@ -85,6 +96,20 @@
     ))
     (rec '() thing n)
 )
+(define (extlst lst len)
+    (if (eq? len 0)
+        lst
+        (let*
+            (
+                (n (null? lst))
+                (a (if n '() (car lst)))
+                (d (if n '() (cdr lst)))
+                (l (- len 1))
+            )
+            (if (eq? lst '())
+                (cons a (extlst '() l))
+                (cons a (extlst d l))
+))))
 
 #|
 
@@ -145,10 +170,25 @@ SCM scm_import_<funcname>(SCM args)
 
 |#
 
+; SCM function looks to C like SCM(*)(SCM)
+; env_apply(scmfunc, 
+
+(define (func-filter func)
+    (match func
+        (('ptr ('func ret arg)) `(func ,ret ,arg))
+        (('func ret arg) `(func ,ret ,arg))
+        (_ "KHAAAAAAN!!!")
+    )
+)
 (define (node-type node) (car node))
-(define (func-args func) (caddr func))
-(define (func-ret func) (cadr func))
-(define (ptr-tgt ptr) (cadr ptr))
+(define (isfuncptr? type)
+    (match type
+        (('ptr ('func _ _)) #t)
+        (_ #f)
+))
+(define (func-args func) (caddr (func-filter func)))
+(define (func-ret func) (cadr (func-filter func)))
+(define (ptr-tgt ptr) (cadr (func-filter ptr)))
 (define (scmisptr? type) (eq? (car type) 'ptr))
 (define (scmtocname type name)
     (match type
@@ -165,14 +205,48 @@ SCM scm_import_<funcname>(SCM args)
         ))
         (_ (if (string-null? name)
             (symbol->string type)
-            (string-append (symbol->string type) name)
+            (string-append (symbol->string type) " " name)
 ))))
+(define (mkstring item)
+    (format #f "~a" item)
+)
+(define (exportname path)
+    (string-append "scm_export_" (car path) "_"
+        (string-join(map mkstring (cdr path)) "_")
+))
+(define (importname path)
+    (string-append "scm_import_" (car path) "_"
+        (string-join(map mkstring (cdr path)) "_")
+))
+(define (ecbname path)
+    (string-append "scm_ecb_" (car path) "_"
+        (string-join(map mkstring (cdr path)) "_")
+))
+(define (icbname path)
+    (string-append "scm_icb_" (car path) "_"
+        (string-join(map mkstring (cdr path)) "_")
+))
 (define (scmtoctype type) (scmtocname type ""))
 (define (scmtypename ctype)
     (match ctype
-        (('ptr _) "ptr")
+        (('ptr . _) "ptr")
         (a (symbol->string a))
-    )
+))
+;(define (wrapecb name type)
+;    
+;)
+(define (wrapicb name with)
+    (string-append
+        "scm_get_func_ptr(scm_env_apply(" name "," with "));\n"
+))
+(define (rettype fname)
+    (string-append fname "_ret")
+)
+(define (mktypedef type name)
+    (string-append "typedef " (scmtocname type name) ";\n")
+)
+(define (rettypedef fname type)
+    (mktypedef (func-ret type) (rettype fname))
 )
 (define (scmimport-conv fname type argn)
     (let*
@@ -183,23 +257,23 @@ SCM scm_import_<funcname>(SCM args)
         )
         (match type
             (('ptr ('func ret args))
-                (string-append (scmtocname type argnm) "=scm_env_apply(scm_icb_"
-                    fname "_" argn ",scm_car(args));\nargs=scm_cdr(args);")
+                (string-append (scmtocname type argnm)
+                "=scm_get_func_ptr(scm_env_apply(scm_icb_"
+                fname "_" argn ",scm_car(args)));\nargs=scm_cdr(args);")
             )
             (('ptr . _) (string-append "void* " argnm
-                "=scm_ptr2scm(scm_car(args));\nargs=scm_cdr(args);"))
-            (_ (string-append stype " " argnm "=scm_" stype 
-                "2scm(scm_car(args));\nargs=scm_cdr(args);"
+                "=scm_scm2ptr(scm_car(args));\nargs=scm_cdr(args);"))
+            (_ (string-append stype " " argnm "=scm_scm2" stype 
+                "(scm_car(args));\nargs=scm_cdr(args);"
 )))))
-(define (scmimport-header fname type)
-    (string-append (scmtoctype (func-ret type))
-        " scm_import_" fname "(SCM args)\n")
+(define (scmimport-header fname)
+    (string-append "SCM scm_import_" fname "(SCM args)\n")
 )
 (define (scmimport-return fname type)
     (define arg (map scmtoctype (func-args type)))
     (define ret (scmtypename (func-ret type)))
     (string-append
-        "return scm_" ret "2scm(" fname ", "
+        "return scm_" ret "2scm(" fname "("
         (string-join
             (let ((len (length arg)))
                 (map string-append
@@ -208,12 +282,12 @@ SCM scm_import_<funcname>(SCM args)
             ))
             ", "
         )
-        ");\n"
+        "));\n"
     )
 )
 (define (scmimport-top fname type)
     (string-append
-        (scmimport-header fname type)
+        (scmimport-header fname)
         "{\n"
         (string-join
             (let* ((arg (func-args type)) (len (length arg)))
@@ -227,9 +301,9 @@ SCM scm_import_<funcname>(SCM args)
         "\n"
         (scmimport-return fname type)
         "}\n"
-    )
-)
+))
 (define (scmexport-conv fname type argn)
+;args = scm_cons(scm_get_func_ptr(scm_env_apply(scm_ecb_<fname>_#, arg#)), args)
     (let*
         (
             (argn (number->string argn))
@@ -238,38 +312,65 @@ SCM scm_import_<funcname>(SCM args)
         )
         (match type
             (('ptr ('func ret args)) (string-append
-                "args = scm_cons(scm_ptr2scm(&scm_ecb_" fname "_"
-                argn "), args);\n"
+                "args=scm_cons(scm_get_func_ptr(scm_env_apply(scm_ecb_"
+                fname "_" argn "," argnm ")), args);\n"
             ))
             (('ptr . _) (string-append
-                "args = scm_cons(scm_ptr2scm(" argnm "),args);\n"
+                "args=scm_cons(scm_ptr2scm(" argnm "),args);\n"
             ))
             (_ (string-append
-                "args = scm_cons(scm_" (scmtypename type)
+                "args=scm_cons(scm_" (scmtypename type)
                 "2scm(" argnm "),args);\n"
 )))))
+(define (scmexport-rgen fname type)
+    (if (isfuncptr? type)
+        (scmicb-top fname type '("r"))
+        ""
+    )
+)
+(define (scmexport-agen fname type pos)
+    (if (isfuncptr? type)
+        (scmecb-top fname type `(,pos))
+        ""
+    )
+)
+(define (scmexport-predefs fname type)
+    (define args (func-args type))
+    (define nargs (length args))
+    (define ret (func-ret type))
+    (string-append
+        (scmexport-rgen fname ret)
+        (string-join
+            (map scmexport-agen
+                (ntimes fname nargs)
+                args
+                (iota nargs)
+            )
+            ""
+)))
 (define (scmexport-header fname type)
     (format #f "~a ~a(~a)"
-        (scmtoctype (func-ret type))
+        (rettype fname)
         fname
         (let*
             (
                 (args (func-args type))
                 (argn (length args))
             )
-            (string-join (map string-append
-                    (map scmtoctype args)
-                    (ntimes " " argn)
+            (string-join
+                (map scmtocname
+                    args
                     (map
                         (compose
                             (cut string-append "arg" <>)
                             number->string
                         )
                         (iota argn)
-                    ))
+                ))
                 ","
 ))))
-(define scmexport-init "if(!scm_initialized) scm_init();\nSCM args=scm_null;")
+(define scm-initcall "if(!scm_initialized) scm_init();\n")
+(define scmexport-init (string-append scm-initcall "SCM args=scm_null;"))
 (define (scmexport-ret fname type)
     (define ret (func-ret type))
     (string-append
@@ -278,6 +379,8 @@ SCM scm_import_<funcname>(SCM args)
 ))
 (define (scmexport-top fname type)
     (string-append
+        (scmexport-predefs fname type)
+        (rettypedef fname type)
         (scmexport-header fname type) "\n{\n"
         scmexport-init "\n"
         (string-join
@@ -293,23 +396,16 @@ SCM scm_import_<funcname>(SCM args)
             ))
             ""
         )
-        (scmexport-ret fname type)
+        (if (isfuncptr? (func-ret type))
+            (string-append
+                "return scm_get_func_ptr(scm_env_apply("
+                (icbname (list fname "r")) ",scm_apply(var_" fname ",args)));\n"
+            )
+            (scmexport-ret fname type)
+        )
         "}\n"
 ))
 ;return a corrected argument list with names
-#|
-(define (scmicb-special type)
-    (define (argrec args)
-        (if (eq? args '())
-            (append args (cons 'SCM '()))
-            (let ((a (car args)) (d (cdr args)))
-                (if (eq? a 'double)
-                    (cons a (scmicb-special d))
-                    (cons 'SCM d)
-    ))))
-    (argrec (func-args type))
-)
-|#
 (define (scmicb-special type)
     (define (argrec args)
         (if (eq? args '())
@@ -327,7 +423,7 @@ SCM scm_import_<funcname>(SCM args)
     (let* ((margs (scmicb-special type)) (nargs (length margs)))
         (string-append
             (scmtoctype (func-ret type)) " scm_icb_" fname "_"
-            (string-join (map number->string ichain) "_")
+            (string-join (map mkstring ichain) "_")
             "("
             (string-join
                 (map
@@ -350,10 +446,123 @@ SCM scm_import_<funcname>(SCM args)
             )
             ")\n"
 )))
-;(define (scmicb-init fname type ichain)
-    
-;)
+(define (scmicb-conv fname type argn ichain)
+;args = scm_cons(scm_get_func_ptr(scm_env_apply(scm_ecb_<fname>_#, arg#)), args)
+    (let*
+        (
+            (ichain (cons fname (append ichain `(,argn))))
+            (argn (number->string argn))
+            (argnm (string-append "arg" argn))
+            (stype (if (pair? type) '() (symbol->string type)))
+        )
+        (match type
+            (('ptr ('func ret args)) (string-append
+                "arglist=scm_cons(scm_get_func_ptr(scm_env_apply("
+                (ecbname ichain) "," argnm ")), arglist);\n"
+            ))
+            (('ptr . _) (string-append
+                "arglist=scm_cons(scm_ptr2scm(" argnm "),arglist);\n"
+            ))
+            (_ (string-append
+                "arglist=scm_cons(scm_" (scmtypename type)
+                "2scm(" argnm "),arglist);\n"
+)))))
+(define (scmicb-init type sargt sargn)
+;    int arg2 = scm_cdr(sarg);
+;    SCM arglist = scm_null;
+    (string-append
+        scm-initcall (scmtocname `(ptr ,type) "f") "=scm_car(sarg);\n"
+        (scmtocname sargt (string-append "arg" (number->string sargn)))
+        "=scm_cdr(sarg);\nSCM arglist=scm_null;\n"
+))
+(define (scmicb-top fname type ichain)
+    (define ret (func-ret type))
+    (define varg (func-args type))
+    (define vargn (length varg))
+    (define narg (scmicb-special type))
+    (define nargn (length narg))
+    (define margn (max vargn nargn))
+    (define varge (extlst varg margn))
+    (define narge (extlst narg margn))
+    (define parg (map list varge narge (iota margn)))
+    (define pargn (length parg))
+    (define sarga (car (filter (lambda (x) (eq? (cadr x) 'SCM)) parg)))
+    (define sargt (car sarga))
+    (define sargi (caddr sarga))
+    (define sargn sargi)
+    (string-append
+        (scmicb-header fname type ichain)
+        "{\n"
+        (scmicb-init type sargt sargn)
+        (string-join
+            (reverse
+                (map scmicb-conv
+                    (ntimes fname vargn)
+                    varg
+                    (iota vargn)
+                    (ntimes ichain vargn)
+            ))
+            ""
+        )
+        "return scm_scm2" (scmtypename ret) "(scm_apply(f, arglist));\n}\n"
+))
 
+#|
+SCM scm_ecb_<funcname>_<path>(SCM args)
+{
+    <ret>(*f)<args> = scm_car(args);
+    return scm_int2scm(f());
+}
+|#
+
+(define (scmecb-conv fname type argn ichain)
+    (let*
+        (
+            (argn (number->string argn))
+            (argnm (string-append "arg" argn))
+            (stype (if (pair? type) '() (symbol->string type)))
+        )
+        (match type
+            (('ptr ('func ret args))
+                (string-append (scmtocname type argnm)
+                "=scm_get_func_ptr(scm_env_apply("
+                (icbname (cons fname ichain))
+                ",scm_car(args)));\nargs=scm_cdr(args);")
+            )
+            (('ptr . _) (string-append "void* " argnm
+                "=scm_scm2ptr(scm_car(args));\nargs=scm_cdr(args);"))
+            (_ (string-append stype " " argnm "=scm_scm2" stype 
+                "(scm_car(args));\nargs=scm_cdr(args);"
+)))))
+
+(define (scmecb-top fname type ichain)
+    (let* ((args (func-args type)) (argn (length args)))
+        (string-append
+            "SCM scm_ecb_" fname "_" (string-join (map mkstring ichain) "_")
+            "(SCM args)\n{\n"
+            (scmtocname `(ptr ,type) "f") "=scm_car(args);\n"
+            "args=scm_cdr(args);\n"
+            (string-join
+                (map (lambda (a b c d) (scmecb-conv a b c (append ichain c)))
+                    (ntimes fname argn)
+                    args
+                    (iota argn)
+                    (ntimes ichain argn)
+                )
+                "\n"
+            )
+            "\nreturn scm_" (scmtypename (func-ret type)) "2scm(f("
+            (string-join
+                (map
+                    (compose
+                        (cut string-append "arg" <>)
+                        number->string
+                    )
+                    (iota argn)
+                )
+            ",")
+            "));\n}\n"
+)))
 #|
 (define scmheader "#include \"scm.h\"\n")
 
