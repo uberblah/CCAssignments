@@ -16,34 +16,50 @@
 \begin{document}
 
 \title{Automatic FFI and API for Compiled High-Level Languages}
-\authorinfo{Dakota Fisher\and Miles Rufat-Latre}
+\authorinfo{Dakota Fisher}
+	{University of Colorado, Boulder}
+
+\authorinfo{Miles Rufat-Latre}
 	{University of Colorado, Boulder}
 
 \maketitle
 
 \begin{abstract}
-	Some abstract stuff
+To be able to write programs to perform certain classes of tasks, programming languages need to be able to refer to functions, variables and other symbols defined externally. FFI and API code permits programmers to import and export symbols, but this costs excessive programmer time, despite the type information needed to create this code being already available. This process can be automated extensively, reducing the time needed to port code from one language to another and freeing up programmers to work on other things.
 \end{abstract}
 
-\section*{Introduction}
-Some introduction stuff
-\terms
-C callback (a function in C called by Scheme)
-Scheme callback (a function in C called by Scheme)
+\section{Introduction}
+
+
+\subsection{Terminology}
+C callback (a function in C called by Scheme) \\
+Scheme \cite{scheme} callback (a function in Scheme called by C)
 
 \section{Calling Convention}
+To fit all the constraints imposed by C, Scheme and System V ABI compliant x86-64 compiled code, calling convention requires special attention.
+The constraint imposed by C is that it should be able to write a function in C compilable in Scheme.
+The constraints imposed by the ABI are the calling convention.
+Scheme functions must fit proper tail recursion as described in Section 3.5 of R5RS \cite{scheme}.
+An additional constraint is thus imposed by Scheme in that tail-call elimination must be possible.
 
 \subsection{Scheme Calling Convention}
-A new calling convention was required to fit the design constraints imposed by Scheme that are disallowed in C. In particular, both tail-call elimination and variable arguments using the calling convention described in the System V ABI for x86-64 are impossible. For simplicity, the calling convention was reduced to storing an argument list in the rdi register of the processor. The choice of rdi is essential in permitting the straightforward production of wrapper functions in C.
+A new calling convention was required to fit the design constraints imposed by Scheme that are disallowed in compiled C code.
+In particular, the combination of both tail-call elimination and variable arguments using the calling convention described for x86-64 are impossible because the calling convention is a caller cleanup calling convention.
+For simplicity, the calling convention was reduced to storing an argument list in the rdi register of the processor.
+The choice of rdi is essential in permitting the straightforward production of wrapper functions in C.
 
 \subsection{Partial Application of Scheme Code}
-Given that a list of arguments is stored in the rdi register, partial application can be done by creating a new function which performs cons on the partially-applied parameter and the caller’s argument list, effectively adding an argument to the argument list, then jumping to a pre-determined function. The choice of rdi is to permit this partial application scheme to work on API and callback calls from C code with minimal effort (see next subsection, Partial Application on Compiled C Code).
+Given that a list of arguments is stored in the rdi register, partial application can be done by creating a new function which performs cons on the partially-applied parameter and the caller’s argument list, effectively adding an argument to the argument list, then jumping to a pre-determined function. The choice of rdi is to permit this partial application scheme to work on API and callback calls from C code with minimal effort (see next subsection, Partial Application on Compiled C Code). Effectively, partial application produces general-purpose closures.
 
-Calling or dispatching to scm\_cons (as the C function) provides some additional difficulties. In particular, a copy has to be made of every register that may be used as an argument in the callee of the partial application. For functions internal to Scheme, this is not a problem. However, for C callbacks, this means making copies of a large number of registers. To avoid this problem, the storage for a cons pair is provided in the closure, with the caveat that recursive calls of the function may change the second value stored in the pair. This adds an additional constraint to partially-applied functions. Any recursive calls utilize the same storage and thus overwrite the second and thus the final access of the pair that obtains its second value must be made before any call is made that could eventually become a recursive call.
-
-\subsection{Partial Application on Compiled C Code}
+Calling or dispatching to scm\_cons (as the C function) provides some additional difficulties.
+In particular, a copy has to be made of every register that may be used as an argument in the callee of the partial application.
+For functions internal to Scheme, this is not a problem. However, for C callbacks, this means making copies of a large number of registers.
+To avoid this problem, the storage for a cons pair is provided in the closure, with the caveat that recursive calls of the function may change the second value stored in the pair.
+This adds an additional constraint to partially-applied functions. Any recursive calls utilize the same storage and thus overwrite the second value of the pair and thus the final access of the pair that obtains its second value must be made before any call is made that could eventually become a recursive call.
 
 \lstinputlisting[firstline=105,lastline=121,language=C]{code.txt}
+
+%\subsection{Partial Application on Compiled C Code}
 
 \section{Modifications to R5RS Scheme}
 \subsection{New syntax}
@@ -107,6 +123,12 @@ Suppose instead that force is exported rather than imported. In Scheme:
 The C callback wrapper for the first argument is:
 
 \lstinputlisting[firstline=89,lastline=103,language=C,breaklines=true]{code.txt}
+
+Finally, functions can be returned from either by simply inverting what the callback wrappers do.
+
+\section{Conclusion}
+It has been demonstrated that it is feasible to considerably reduce the effort necessary to write FFI and API code for high-level languages by utilizing the type information available in header files.
+In addition, there exists a fairly general and relatively portable technique permitting this method to utilize callbacks, given availability of the instruction pointer.
 
 \bibliographystyle{abbrvnat}
 \begin{thebibliography}{10}
