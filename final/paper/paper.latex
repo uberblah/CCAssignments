@@ -1,6 +1,9 @@
-\documentclass[11pt]{sigplanconf}
+\documentclass[11pt,nocopyrightspace]{sigplanconf}
 \usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
 \usepackage{listings}
+\usepackage{natbib}
 
 \lstdefinelanguage
 [x64]{Assembler}     % add a "x64" dialect of Assembler
@@ -12,78 +15,102 @@
 
 \begin{document}
 
-Terminology
+\title{Automatic FFI and API for Compiled High-Level Languages}
+\authorinfo{Dakota Fisher\and Miles Rufat-Latre}
+	{University of Colorado, Boulder}
+
+\maketitle
+
+\begin{abstract}
+	Some abstract stuff
+\end{abstract}
+
+\section*{Introduction}
+Some introduction stuff
+\terms
 C callback (a function in C called by Scheme)
 Scheme callback (a function in C called by Scheme)
 
-Scheme calling convention:
+\section{Calling Convention}
+
+\subsection{Scheme Calling Convention}
 A new calling convention was required to fit the design constraints imposed by Scheme that are disallowed in C. In particular, both tail-call elimination and variable arguments using the calling convention described in the System V ABI for x86-64 are impossible. For simplicity, the calling convention was reduced to storing an argument list in the rdi register of the processor. The choice of rdi is essential in permitting the straightforward production of wrapper functions in C.
 
-Partial application:
-Given that a list of arguments is stored in the rdi register, partial application can be done by creating a new function which performs cons on the partially-applied parameter and the caller’s argument list, effectively adding an argument to the argument list, then jumping to a pre-determined function. The choice of rdi is to permit this partial application scheme to work on API and callback calls from C code with minimal effort.
+\subsection{Partial Application of Scheme Code}
+Given that a list of arguments is stored in the rdi register, partial application can be done by creating a new function which performs cons on the partially-applied parameter and the caller’s argument list, effectively adding an argument to the argument list, then jumping to a pre-determined function. The choice of rdi is to permit this partial application scheme to work on API and callback calls from C code with minimal effort (see next subsection, Partial Application on Compiled C Code).
 
 Calling or dispatching to scm\_cons (as the C function) provides some additional difficulties. In particular, a copy has to be made of every register that may be used as an argument in the callee of the partial application. For functions internal to Scheme, this is not a problem. However, for C callbacks, this means making copies of a large number of registers. To avoid this problem, the storage for a cons pair is provided in the closure, with the caveat that recursive calls of the function may change the second value stored in the pair. This adds an additional constraint to partially-applied functions. Any recursive calls utilize the same storage and thus overwrite the second and thus the final access of the pair that obtains its second value must be made before any call is made that could eventually become a recursive call.
 
-New syntax:
+\subsection{Partial Application on Compiled C Code}
+
+\lstinputlisting[firstline=105,lastline=121,language=C]{code.txt}
+
+\section{Modifications to R5RS Scheme}
+\subsection{New syntax}
 Three new special forms, import, export and exportfunc, are added to the subset of R5RS chosen, and are shown in BNF form below:
 
-\lstinputlisting[firstline=1,lastline=10]{code.txt}
+\lstinputlisting[firstline=1,lastline=10,breaklines = true]{code.txt}
 
 The BNF rule <command or definition> specified in the formal syntax of R5RS Scheme is replaced with:
 
-\lstinputlisting[firstline=13,lastline=20]{code.txt}
+\lstinputlisting[firstline=13,lastline=20,breaklines = true]{code.txt}
 
-Semantics:
+\subsection{New Semantics}
 All import statements are evaluated first and bind all procedures and variables specified in the C file to converted Scheme variables of the same name. Procedures are bound as new functions which converts all arguments and the return value to and from corresponding Scheme values appropriately, based on the C types. Variables are bound as their addresses in a foreign type and manipulated as such. The rationale for choosing this method is that variables in C do not correspond to values but addresses. An alternative semantics could automatically convert the type of the variable to and from its corresponding Scheme values, but has caveats in what it means to bind the variable (in particular, there are difficulties regarding what happens to the type of the contained data).
 
 Export statements have no effect on internal Scheme code except that one cannot export an imported function or variable, as doing so creates two instances of a single global variable, and makes linking impossible. Running top-level code is necessary to initialize all Scheme variables, so exported procedures must first run all top-level code if not already run. Once that is done, the procedures return the converted result of applying the relevant Scheme function on converted arguments. Exported variables are exported as SCM types.
 
-Wrappers
+Wrappers:
 Due to using different calling conventions and due to the different type systems in play, FFI calls and API calls need compatibility wrappers. An FFI call wrapper takes a list of arguments, converts each argument into the appropriate C type, calls the function and then converts the result into a Scheme value. API call wrappers do the reverse, taking some arguments from C, converting them into Scheme values, applying the list of arguments to the function and then converting the result from a Scheme value to a C value. This is the bulk of the work that permits x86-64 ABI compatibility.
 
 Suppose the imported function:
 
-\lstinputlisting[firstline=23,lastline=23]{code.txt}
+\lstinputlisting[firstline=23,lastline=23,language=C,breaklines = true]{code.txt}
 
 The FFI call generated is:
 
-\lstinputlisting[firstline=26,lastline=32,language=C]{code.txt}
+\lstinputlisting[firstline=26,lastline=32,language=C,breaklines = true]{code.txt}
 
 At the beginning of evaluation of the Scheme program, a closure is created wrapping this function, with this assembly:
 
-\lstinputlisting[firstline=35,lastline=45,language={[x64]Assembler}]{code.txt}
+\lstinputlisting[firstline=35,lastline=45,language={[x64]Assembler},breaklines = true]{code.txt}
 
 Suppose that instead, the add function is exported as the same type:
 
-\lstinputlisting[firstline=48,lastline=48,language=Lisp]{code.txt}
+\lstinputlisting[firstline=48,lastline=48,language=Lisp,breaklines = true]{code.txt}
 
 The assembly produced makes var\_add a global symbol. The API wrapper then becomes this C code:
 
-\lstinputlisting[firstline=51,lastline=58,language=C]{code.txt}
+\lstinputlisting[firstline=51,lastline=58,language=C,breaklines = true]{code.txt}
 
-Callbacks
+Callbacks:
 If an FFI call returns a function pointer or an API call takes a function pointer as an argument, a new C callback (that is, a callback to C code, that Scheme calls) must be generated to convert the C function pointer to the appropriate Scheme function. To do this, a C callback wrapper is made. For example, suppose the imported function:
 
-\lstinputlisting[firstline=61,lastline=61,language=C]{code.txt}
+\lstinputlisting[firstline=61,lastline=61,language=C,breaklines = true]{code.txt}
 
 Ideally, to generate this callback, one would be able to write a function:
 
-\lstinputlisting[firstline=64,lastline=68,language=C]{code.txt}
+\lstinputlisting[firstline=64,lastline=68,language=C,breaklines = true]{code.txt}
 
 wherein ??? is a function converting scm values to appropriate C functions. The essential problem is that a new C function must be generated at runtime, which is impossible to do in pure C. While C has no facilities for functions which create functions, it is possible to import a facility which does do such a task. In particular, the partial application function for Scheme functions can also be utilized to generate new functions from C wrappers. Consider the following function:
 
-\lstinputlisting[firstline=71,lastline=75,language=C]{code.txt}
+\lstinputlisting[firstline=71,lastline=75,language=C,breaklines = true]{code.txt}
 
-In x64, the sarg argument is stored in \%rdi. Recall that the Scheme method of partial application places the value of \%rdi in a pair and then places the pair (as a SCM cons) in \%rdi. The same partial application, on this wrapper, creates a function wherein the partially-applied function is evaluated on an empty list and its result converted to int. That is, given this function, a correct import of the force function is:
+As compiled x64 code, the sarg argument is stored in \%rdi. Recall that the Scheme method of partial application places the value of \%rdi in a pair and then places the pair (as a SCM cons) in \%rdi. The same partial application, on this wrapper, creates a function wherein the partially-applied function is evaluated on an empty list and its result converted to int. That is, given this function, a correct import of the force function is:
 
-\lstinputlisting[firstline=78,lastline=83,language=C]{code.txt}
+\lstinputlisting[firstline=78,lastline=83,language=C,breaklines=true]{code.txt}
 
 Suppose instead that force is exported rather than imported. In Scheme:
 
-(exportfunc force int (ptr (func int ())))
+\lstinputlisting[firstline=86,lastline=86,language=LISP,breaklines=true]{code.txt}
 
 The C callback wrapper for the first argument is:
 
-\lstinputlisting[firstline=89,lastline=103,language=C]{code.txt}
+\lstinputlisting[firstline=89,lastline=103,language=C,breaklines=true]{code.txt}
+
+\bibliographystyle{abbrvnat}
+\begin{thebibliography}{10}
+	\bibitem{scheme} R. Kelsey, W. Clinger, J. Rees (eds.), Revised\(^5\) Report on the Algorithmic Language Scheme, \textit{Higher-Order and Symbolic Computation}, Vol. 11, No. 1, August, 1998.
+\end{thebibliography}
 
 \end{document}

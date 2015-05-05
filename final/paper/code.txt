@@ -23,7 +23,7 @@
 extern int add(int args);
 
 
-SCM scm_import_add(SCM args) { // “args” is an argument list
+SCM scm_import_add(SCM args) {
   int arg0 = scm_scm2int(scm_car(args));
   args = scm_cdr(args);
   int arg1 = scm_scm2int(scm_car(args));
@@ -76,8 +76,9 @@ int scm_icb_force_0(SCM sarg) {
 
 
 int scm_import_force(int (*arg0)()) {
-  int (*arg0)() = scm_get_func_ptr(scm_env_apply(
-      scm_icb_force_0,scm_car(args)));
+  int (*arg0)() = scm_get_func_ptr(
+    scm_env_apply(scm_icb_force_0,
+    scm_car(args)));
   SCM args = scm_null;
   return scm_int2scm(force(arg0));
 }
@@ -97,7 +98,24 @@ int force(int (*arg0)()) {
   if (!scm_initialized) scm_init();
   SCM f = var_force;
   SCM args = scm_null;
-  args = scm_cons(scm_get_func_ptr(
-    scm_env_apply(scm_ecb_force_0,arg0)),args);
+  args = scm_cons(scm_get_func_ptr(scm_env_apply(scm_ecb_force_0,arg0)),args);
   return scm_scm2int(scm_apply(f,args));
 }
+
+.align 16
+jit_begin:
+
+jit_func: /* places */
+movq %rdi, jit_store(%rip)
+leaq (jit_const+2)(%rip), %rdi
+jmp *jit_const_func(%rip)
+
+.align 16
+jit_const:
+.quad 0
+jit_store:
+.quad 0
+jit_const_func:
+.quad 0
+
+jit_end:
