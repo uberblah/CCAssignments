@@ -82,13 +82,19 @@
                     (define write scm_write)
                     (define is_null scm_is_null)
                     (define is_pair scm_is_pair)))
-(define (compile-meta mprog)
+(define (compile-fake-meta mprog)
   (define prog (append preprog mprog))
   (define toplevel-vars
     (map cadr (filter (lambda (x) (and (pair? x) (eqv? (car x) 'define)))
                       (toplevel-unbegin (unsugar-def prog)))))
   (list (compile-prog prog toplevel-vars) fake-impfuncs fake-impvars fake-expfuncs fake-expvars toplevel-vars))
 
+(define (compile-meta mprog impfuncs impvars expvars expfuncs)
+  (define prog (append preprog mprog))
+  (define toplevel-vars
+    (map cadr (filter (lambda (x) (and (pair? x) (eqv? (car x) 'define)))
+                      (toplevel-unbegin (unsugar-def prog)))))
+  (list (compile-prog prog toplevel-vars) impfuncs impvars expfuncs expvars toplevel-vars))
 
 (define (assemble-block block locs)
   (apply append (map (cut assemble-cmd <> locs) block)))
@@ -266,9 +272,20 @@
         (else (string-append (symbol->string (car code)) " "
                              (string-join (map getstr (cdr code)) ",")))))
 
+#|
 (define (asm-file prog output-file)
   (if (output-port? output-file)
     (begin (display ((compose asm-str assemble-meta-prog compile-meta) prog)
+                    output-file)
+           (newline output-file))
+    (let ((f (open-output-file output-file)))
+      (begin (asm-file prog f)
+             (close-port f)))))
+|#
+
+(define (asm-fake-file prog output-file)
+  (if (output-port? output-file)
+    (begin (display ((compose asm-str assemble-meta-prog compile-fake-meta) prog)
                     output-file)
            (newline output-file))
     (let ((f (open-output-file output-file)))

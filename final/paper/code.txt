@@ -1,0 +1,103 @@
+<import> -> (import <string>)
+<export> -> (export <identifier>)
+<exportfunc> -> (exportfunc <identifier> <type> (<type>*))
+
+<type> -> (func type (<type>*))
+  | (ptr <type>)
+  | (union (<type>*))
+  | (struct (<type>*))
+  | <type_prim>
+<type_prim> -> <anyctype> | SCM
+
+
+<command or definition> -> <original command or definition>
+  | <import>
+  | <export>
+  | <exportfunc>
+<original command or definition> -> <command>
+  | <definition>
+  | <syntax definition>
+  | (begin <original command or definition>+)
+
+
+extern int add(int args);
+
+
+SCM scm_import_add(SCM args) { // “args” is an argument list
+  int arg0 = scm_scm2int(scm_car(args));
+  args = scm_cdr(args);
+  int arg1 = scm_scm2int(scm_car(args));
+  args = scm_cdr(args);
+  return scm_int2scm(add(arg0,arg1));
+}
+
+
+/* other variable declarations */
+var_add:
+.quad 0
+/* other variable declarations */
+scm_init:
+.global scm_init
+/* other variable initializations */
+movq $scm_import_add, %rdi
+call scm_make_closure
+movq %rax, var_add
+/* rest of code */
+
+
+(exportfunc add int (int int))
+
+
+int add(int arg0, int arg1) {
+  if (!scm_initialized) scm_init();
+  SCM f = var_add;
+  SCM args = scm_null;
+  args = scm_cons(scm_int2scm(arg0),args);
+  args = scm_cons(scm_int2scm(arg1),args);
+  return scm_scm2int(scm_apply(var_add,args));
+}
+
+
+int force(int(*)());
+
+
+SCM scm_import_force(SCM args) {
+  int (*arg0)() = ???(scm_car(args));
+  SCM args = scm_null;
+  return scm_int2scm(force(arg0));
+}
+
+
+int scm_icb_force_0(SCM sarg) {
+  SCM f = scm_car(sarg);
+  SCM args = scm_null;
+  return scm_scm2int(scm_apply(f,args));
+}
+
+
+int scm_import_force(int (*arg0)()) {
+  int (*arg0)() = scm_get_func_ptr(scm_env_apply(
+      scm_icb_force_0,scm_car(args)));
+  SCM args = scm_null;
+  return scm_int2scm(force(arg0));
+}
+
+
+(exportfunc force int (ptr (func int ())))
+
+
+SCM scm_ecb_force_0(SCM args) {
+  int (*f)() = scm_car(args);
+  return scm_int2scm(f());
+}
+
+
+extern SCM var_force;
+int force(int (*arg0)()) {
+  if (!scm_initialized) scm_init();
+  SCM f = var_force;
+  SCM args = scm_null;
+  args = scm_cons(scm_get_func_ptr(
+    scm_env_apply(scm_ecb_force_0,arg0)),args);
+  return scm_scm2int(scm_apply(f,args));
+}
