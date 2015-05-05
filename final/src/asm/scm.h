@@ -25,6 +25,8 @@ SCM scm_ptr2scm(void* ptr);
 void* scm_scm2ptr(SCM val);
 SCM scm_double2scm(double val);
 double scm_scm2double(SCM val);
+SCM scm_float2scm(float val);
+float scm_scm2float(SCM val);
 SCM scm_is_int(SCM val);
 SCM scm_is_big(SCM val);
 SCM scm_is_pair(SCM val);

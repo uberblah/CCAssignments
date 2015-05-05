@@ -41,10 +41,18 @@ SCM scm_double2scm(double val) {
     return makeforeign(*((void**)(&val)));
 }
 
+SCM scm_float2scm(float val) {
+    return scm_double2scm((float)val);
+}
+
 double scm_scm2double(SCM val) {
     val &= ~0x7;
     scm_big* big = *((void**)(&val));
     return *((double*)(big->payload));
+}
+
+float scm_scm2float(SCM val) {
+    return (float)scm_scm2double(val);
 }
 
 SCM scm_is_int(SCM val) {
