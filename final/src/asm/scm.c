@@ -20,6 +20,33 @@ bool scm_scm2bool(SCM val) {
 	return (val != scm_false);
 }
 
+void* scm_scm2ptr(SCM val) {
+    scm_big* big = (void*)(val & ~0x7);
+    return big->payload;
+}
+
+SCM scm_ptr2scm(void* ptr) {
+    return scm_makeforeign(ptr);
+}
+
+SCM scm_int2scm(int val) {
+    return val << 0x3;
+}
+
+int scm_scm2int(SCM val) {
+    return val >> 0x3;
+}
+
+SCM scm_double2scm(double val) {
+    return makeforeign(*((void**)(&val)));
+}
+
+double scm_scm2double(SCM val) {
+    val &= ~0x7;
+    scm_big* big = *((void**)(&val));
+    return *((double*)(big->payload));
+}
+
 SCM scm_is_int(SCM val) {
 	return scm_bool2scm((val & 0x7) == 0x0);
 }
@@ -87,3 +114,22 @@ void scm_write(SCM val) {
 		printf("#f");
 	}
 }
+
+SCM scm_makeforeign(void* ptr)
+{
+    scm_big* big = malloc(sizeof(scm_big));
+    big->payload = ptr;
+    big->tag = 1;
+    SCM val = 0x1 | ((uint64_t)ptr & ~0x7);
+    return val;
+}
+
+SCM scm_makeclosure(void* ptr)
+{
+    scm_big* big = malloc(sizeof(scm_big));
+    big->payload = ptr;
+    big->tag = 2;
+    SCM val = 0x1 | ((uint64_t)ptr & ~0x7);
+    return val;
+}
+
